@@ -21,6 +21,15 @@ final class OverlayController: NSObject {
     private var onSnooze: (() -> Void)?   // temporary — re-alerts soon
     private var keyMonitor: Any?
 
+    // The current break's context, kept so we can rebuild the windows when the
+    // screen arrangement changes (an external display is connected, or the
+    // system relocates windows across a lock/sleep).
+    private var activeType: BreakType?
+    private var activeTip = ""
+    private var lastCountdownText = "00:00"
+
+    private var isShown: Bool { activeType != nil }
+
     func show(type: BreakType,
               duration: TimeInterval,
               onSkip: @escaping () -> Void,
@@ -28,29 +37,77 @@ final class OverlayController: NSObject {
         hide()
         self.onSkip = onSkip
         self.onSnooze = onSnooze
+        self.activeType = type
+        self.activeTip = Self.tip(for: type)
 
-        let tip = Self.tip(for: type)
-        for screen in NSScreen.screens {
-            let win = makeWindow(on: screen, type: type, tip: tip)
-            windows.append(win)
-            win.makeKeyAndOrderFront(nil)
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        windows.first?.makeKey()
+        buildWindows()
         installKeyMonitor()
+        observeScreenChanges()
         update(remaining: duration)
     }
 
     func update(remaining: TimeInterval) {
-        let text = MenuBarController.clock(max(0, remaining))
-        for label in countdownLabels { label.stringValue = text }
+        lastCountdownText = MenuBarController.clock(max(0, remaining))
+        for label in countdownLabels { label.stringValue = lastCountdownText }
     }
 
     func hide() {
+        removeScreenObserver()
         removeKeyMonitor()
+        tearDownWindows()
+        activeType = nil
+    }
+
+    // MARK: - Window lifecycle
+
+    /// Create one overlay window per current screen and bring them up front.
+    private func buildWindows() {
+        guard let type = activeType else { return }
+        for screen in NSScreen.screens {
+            let win = makeWindow(on: screen, type: type, tip: activeTip)
+            windows.append(win)
+            win.makeKeyAndOrderFront(nil)
+        }
+        for label in countdownLabels { label.stringValue = lastCountdownText }
+        NSApp.activate(ignoringOtherApps: true)
+        windows.first?.makeKey()
+    }
+
+    private func tearDownWindows() {
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         countdownLabels.removeAll()
+    }
+
+    // MARK: - Reacting to display changes
+
+    private func observeScreenChanges() {
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screenParametersChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil)
+    }
+
+    private func removeScreenObserver() {
+        NotificationCenter.default.removeObserver(
+            self, name: NSApplication.didChangeScreenParametersNotification, object: nil)
+    }
+
+    @objc private func screenParametersChanged() {
+        guard isShown else { return }
+        // A lock/sleep with an external display fires a disconnect *and* a
+        // reconnect in quick succession; coalesce them into a single rebuild.
+        NSObject.cancelPreviousPerformRequests(
+            withTarget: self, selector: #selector(rebuildWindows), object: nil)
+        perform(#selector(rebuildWindows), with: nil, afterDelay: 0.2)
+    }
+
+    /// Tear down and recreate so there is exactly one correctly-framed window
+    /// per current screen — fixes overlapping overlays on the built-in display
+    /// and an uncovered external display after a lock/unlock.
+    @objc private func rebuildWindows() {
+        guard isShown else { return }
+        tearDownWindows()
+        buildWindows()
     }
 
     // MARK: - Keyboard shortcuts
