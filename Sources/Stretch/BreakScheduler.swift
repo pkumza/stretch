@@ -136,4 +136,15 @@ final class BreakScheduler {
         scheduleNextWork()
         onTick?(state)
     }
+
+    /// The screen was locked long enough to count as a real break: dismiss any
+    /// overlay, restart the long-break cycle, and reschedule from now. A manual
+    /// Pause is respected (we don't silently un-pause the user).
+    func resetAfterAwayBreak() {
+        if case .paused = state { return }
+        breaksDoneInCycle = 0
+        onBreakEnd?()
+        scheduleNextWork()
+        onTick?(state)
+    }
 }

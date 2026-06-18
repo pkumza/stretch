@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: MenuBarController!
     private var prefs: PreferencesController?
     private let history = HistoryController()
+    private let lockMonitor = LockMonitor()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let url = Bundle.main.url(forResource: "Stretch", withExtension: "icns"),
@@ -35,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         scheduler.onBreakEnd = { [weak self] in
             self?.overlay.hide()
+        }
+
+        lockMonitor.onLongAway = { [weak self] in
+            self?.scheduler.resetAfterAwayBreak()
         }
 
         scheduler.start()

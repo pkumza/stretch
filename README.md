@@ -16,6 +16,9 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
   - **Remind me in 2 min** (snooze) — click, or press **P** / **Esc**.
 - **Local history** — open **History…** from the menu to see breaks taken, rest
   time, permanent skips, and snoozes for today / last 7 days / 30 days / all time.
+- **Away-aware** — if the screen is locked for more than 30 seconds, that counts
+  as a rest: the next-break countdown and the long-break cycle reset on unlock,
+  so you're not nagged the moment you return. (An active **Pause** is respected.)
 - Lives in the **menu bar** with a live countdown to the next break.
 - No Dock icon, no Electron, ~2 MB, no runtime dependencies.
 
