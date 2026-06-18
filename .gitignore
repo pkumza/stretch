@@ -1,0 +1,5 @@
+.build/
+.swiftpm/
+Stretch.app/
+*.xcodeproj
+.DS_Store
