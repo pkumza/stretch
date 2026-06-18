@@ -8,6 +8,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let history = HistoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let url = Bundle.main.url(forResource: "Stretch", withExtension: "icns"),
+           let icon = NSImage(contentsOf: url) {
+            NSApp.applicationIconImage = icon
+        }
+
         menu = MenuBarController(scheduler: scheduler)
         menu.onPreferences = { [weak self] in self?.showPreferences() }
         menu.onHistory = { [weak self] in self?.history.show() }

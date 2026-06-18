@@ -10,6 +10,8 @@
     <string>com.ziang.stretch</string>
     <key>CFBundleExecutable</key>
     <string>Stretch</string>
+    <key>CFBundleIconFile</key>
+    <string>Stretch</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

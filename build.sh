@@ -17,6 +17,9 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Stretch"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+if [ -f Assets/Stretch.icns ]; then
+    cp Assets/Stretch.icns "$APP/Contents/Resources/Stretch.icns"
+fi
 
 # Ad-hoc sign so macOS is happy launching it locally.
 codesign --force --deep --sign - "$APP" 2>/dev/null || true
