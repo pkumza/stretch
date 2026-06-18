@@ -109,7 +109,7 @@ final class MenuBarController: NSObject {
     @objc private func about() {
         let alert = NSAlert()
         alert.messageText = "Stretch"
-        alert.informativeText = "A tiny break reminder.\nShort breaks to rest your eyes, longer breaks to move.\n\nStay healthy. 🧘"
+        alert.informativeText = "A tiny break reminder.\nShort breaks to rest your eyes, longer breaks to move.\n\nCreated by Ziang and Claude Code.\nStay healthy. 🧘"
         alert.alertStyle = .informational
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
