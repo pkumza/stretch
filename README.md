@@ -3,6 +3,11 @@
 A tiny native macOS menu-bar app that reminds you to take breaks — like
 [Stretchly](https://hovancik.net/stretchly/), but built from scratch in Swift.
 
+![Stretch break overlay](docs/overlay.png)
+
+> The full-screen break overlay: a countdown, a suggestion, and two actions —
+> **Skip break** or **Remind me in 2 min** (mouse or keyboard).
+
 - **Short breaks** every 20 minutes (look away, rest your eyes) — 20s by default.
 - **Long breaks** every 60 minutes (stand up, move) — 5 min by default.
 - Breaks appear as a **dimmed full-screen overlay** on every display, with a
