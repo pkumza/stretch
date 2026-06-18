@@ -72,7 +72,12 @@ final class BreakScheduler {
     }
 
     private func finishBreak() {
-        if case .breaking(let type, _) = state { advanceCycle(after: type) }
+        if case .breaking(let type, _) = state {
+            let duration = type.isLong ? settings.longDurationSeconds : settings.shortDurationSeconds
+            HistoryStore.shared.record(isLong: type.isLong, action: .completed,
+                                       durationSec: Int(duration))
+            advanceCycle(after: type)
+        }
         onBreakEnd?()
         scheduleNextWork()
     }
@@ -95,20 +100,28 @@ final class BreakScheduler {
         onTick?(state)
     }
 
-    /// Skip the current break (counts toward the cycle, just like finishing it).
+    /// Permanent skip: drop this break entirely (counts toward the cycle).
     func skipBreak() {
-        if case .breaking(let type, _) = state { advanceCycle(after: type) }
+        if case .breaking(let type, _) = state {
+            HistoryStore.shared.record(isLong: type.isLong, action: .skipped)
+            advanceCycle(after: type)
+        }
         onBreakEnd?()
         scheduleNextWork()
         onTick?(state)
     }
 
-    /// Postpone: dismiss the break and bring it back shortly, same type.
-    func postponeBreak() {
+    /// Snooze: dismiss the break and bring it back shortly, same type.
+    func snoozeBreak() {
         let type: BreakType
-        if case .breaking(let t, _) = state { type = t } else { type = nextType() }
+        if case .breaking(let t, _) = state {
+            type = t
+            HistoryStore.shared.record(isLong: t.isLong, action: .snoozed)
+        } else {
+            type = nextType()
+        }
         onBreakEnd?()
-        state = .working(nextBreak: Date().addingTimeInterval(settings.postponeSeconds),
+        state = .working(nextBreak: Date().addingTimeInterval(settings.snoozeSeconds),
                          nextType: type)
         onTick?(state)
     }

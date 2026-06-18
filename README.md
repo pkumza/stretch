@@ -6,7 +6,11 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
 - **Short breaks** every 20 minutes (look away, rest your eyes) — 20s by default.
 - **Long breaks** every 60 minutes (stand up, move) — 5 min by default.
 - Breaks appear as a **dimmed full-screen overlay** on every display, with a
-  countdown and **Skip** / **Postpone 5 min** buttons.
+  countdown and two actions:
+  - **Skip break** (permanent) — click, or press **S** / **Return**.
+  - **Remind me in 2 min** (snooze) — click, or press **P** / **Esc**.
+- **Local history** — open **History…** from the menu to see breaks taken, rest
+  time, permanent skips, and snoozes for today / last 7 days / 30 days / all time.
 - Lives in the **menu bar** with a live countdown to the next break.
 - No Dock icon, no Electron, ~2 MB, no runtime dependencies.
 
@@ -40,7 +44,15 @@ swift run
 - **Take a short / long break now** — trigger a break immediately.
 - **Reset timer** — restart the countdown to the next break.
 - **Pause** — for 30 min, 1 hour, or indefinitely; **Resume** to continue.
+- **History…** — break stats over time (stored locally, see below).
 - **Preferences…** — change intervals, durations, and launch-at-login.
+
+## History
+
+Every break is logged to `~/Library/Application Support/Stretch/history.json`
+as one of: `completed` (you rested), `skipped` (permanent skip), or `snoozed`
+(temporary). The History window aggregates these into counts and total rest time
+for Today, Last 7 days, Last 30 days, and All time. Nothing leaves your machine.
 
 ## How scheduling works
 

@@ -5,10 +5,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let overlay = OverlayController()
     private var menu: MenuBarController!
     private var prefs: PreferencesController?
+    private let history = HistoryController()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         menu = MenuBarController(scheduler: scheduler)
         menu.onPreferences = { [weak self] in self?.showPreferences() }
+        menu.onHistory = { [weak self] in self?.history.show() }
 
         scheduler.onTick = { [weak self] state in
             guard let self else { return }
@@ -23,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 type: type,
                 duration: duration,
                 onSkip: { [weak self] in self?.scheduler.skipBreak() },
-                onPostpone: { [weak self] in self?.scheduler.postponeBreak() }
+                onSnooze: { [weak self] in self?.scheduler.snoozeBreak() }
             )
         }
         scheduler.onBreakEnd = { [weak self] in

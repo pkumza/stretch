@@ -1,9 +1,15 @@
 import AppKit
 
-/// A borderless window that can still receive key/clicks (needed for the buttons).
+/// A borderless window that can still become key and accept the first click,
+/// so the overlay's buttons and keyboard shortcuts actually work.
 final class OverlayWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+}
+
+/// A button that responds to the very first click even when the app wasn't active.
+final class OverlayButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
 /// Shows a dimmed full-screen overlay on every screen during a break.
@@ -11,16 +17,17 @@ final class OverlayController: NSObject {
     private var windows: [NSWindow] = []
     private var countdownLabels: [NSTextField] = []
 
-    private var onSkip: (() -> Void)?
-    private var onPostpone: (() -> Void)?
+    private var onSkip: (() -> Void)?     // permanent
+    private var onSnooze: (() -> Void)?   // temporary — re-alerts soon
+    private var keyMonitor: Any?
 
     func show(type: BreakType,
               duration: TimeInterval,
               onSkip: @escaping () -> Void,
-              onPostpone: @escaping () -> Void) {
+              onSnooze: @escaping () -> Void) {
         hide()
         self.onSkip = onSkip
-        self.onPostpone = onPostpone
+        self.onSnooze = onSnooze
 
         let tip = Self.tip(for: type)
         for screen in NSScreen.screens {
@@ -29,6 +36,8 @@ final class OverlayController: NSObject {
             win.makeKeyAndOrderFront(nil)
         }
         NSApp.activate(ignoringOtherApps: true)
+        windows.first?.makeKey()
+        installKeyMonitor()
         update(remaining: duration)
     }
 
@@ -38,9 +47,36 @@ final class OverlayController: NSObject {
     }
 
     func hide() {
+        removeKeyMonitor()
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         countdownLabels.removeAll()
+    }
+
+    // MARK: - Keyboard shortcuts
+
+    private func installKeyMonitor() {
+        // Local monitor catches keys while the overlay is up, regardless of which
+        // window is key. Returning nil swallows the event.
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self else { return event }
+            switch event.keyCode {
+            case 36, 76:                       // Return / Enter -> permanent skip
+                self.onSkip?(); return nil
+            case 53:                           // Esc -> snooze
+                self.onSnooze?(); return nil
+            default:
+                switch event.charactersIgnoringModifiers?.lowercased() {
+                case "s": self.onSkip?();   return nil
+                case "p": self.onSnooze?(); return nil
+                default:  return event
+                }
+            }
+        }
+    }
+
+    private func removeKeyMonitor() {
+        if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
     }
 
     // MARK: - Building one screen's overlay
@@ -55,6 +91,7 @@ final class OverlayController: NSObject {
         win.level = .screenSaver
         win.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         win.setFrame(screen.frame, display: true)
+        win.acceptsMouseMovedEvents = true
 
         let content = NSView(frame: NSRect(origin: .zero, size: screen.frame.size))
         win.contentView = content
@@ -67,22 +104,27 @@ final class OverlayController: NSObject {
         countdown.font = NSFont.monospacedDigitSystemFont(ofSize: 64, weight: .semibold)
         countdownLabels.append(countdown)
 
-        let skip = NSButton(title: "Skip", target: self, action: #selector(skipTapped))
-        let postpone = NSButton(title: "Postpone 5 min", target: self, action: #selector(postponeTapped))
-        for b in [skip, postpone] {
+        let skip = OverlayButton(title: "Skip break", target: self, action: #selector(skipTapped))
+        let snooze = OverlayButton(title: "Remind me in 2 min", target: self, action: #selector(snoozeTapped))
+        for b in [skip, snooze] {
             b.bezelStyle = .rounded
             b.controlSize = .large
         }
 
-        let buttons = NSStackView(views: [skip, postpone])
+        let buttons = NSStackView(views: [snooze, skip])
         buttons.orientation = .horizontal
         buttons.spacing = 16
 
-        let stack = NSStackView(views: [title, tipLabel, countdown, buttons])
+        let hint = Self.label("Skip break:  press  S  or  ⏎       ·       Remind me later:  press  P  or  Esc",
+                              size: 13, weight: .regular,
+                              color: NSColor.white.withAlphaComponent(0.5))
+
+        let stack = NSStackView(views: [title, tipLabel, countdown, buttons, hint])
         stack.orientation = .vertical
         stack.alignment = .centerX
-        stack.spacing = 28
+        stack.spacing = 24
         stack.setCustomSpacing(36, after: countdown)
+        stack.setCustomSpacing(18, after: buttons)
         stack.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -92,8 +134,8 @@ final class OverlayController: NSObject {
         return win
     }
 
-    @objc private func skipTapped()     { onSkip?() }
-    @objc private func postponeTapped() { onPostpone?() }
+    @objc private func skipTapped()   { onSkip?() }
+    @objc private func snoozeTapped() { onSnooze?() }
 
     // MARK: - Helpers
 

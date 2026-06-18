@@ -52,6 +52,6 @@ final class Settings {
         max(1, Int((longIntervalSeconds / shortIntervalSeconds).rounded()))
     }
 
-    /// When the user postpones a break, how long until it returns.
-    var postponeSeconds: TimeInterval { 5 * 60 }
+    /// When the user snoozes a break ("remind me later"), how long until it returns.
+    var snoozeSeconds: TimeInterval { 2 * 60 }
 }
