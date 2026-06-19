@@ -6,20 +6,24 @@ import CoreGraphics
 /// situations, so the scheduler can defer a break overlay instead of covering
 /// a meeting, a screen share, or a presentation.
 ///
-/// Two independent signals, either of which defers the break:
+/// Two independent signals defer a break, and they differ in scope:
 ///   1. The microphone is live  -> you're in a call/meeting (Feishu, Zoom, …),
 ///      even if muted, and regardless of which app owns it. This also catches
-///      screen sharing, which during a meeting goes hand in hand with the mic.
-///   2. A *media/meeting* app is frontmost and fullscreen -> a fullscreen video
-///      (YouTube etc.), Keynote presenting, or a conferencing app. We gate on
-///      an allowlist so a fullscreen editor/terminal still earns its eye break.
+///      screen sharing. Meetings defer *every* break — short and long.
+///   2. A *media/meeting* app fills the screen -> a fullscreen/maximized video
+///      (YouTube etc.), Keynote, or a conferencing app, gated on an allowlist so
+///      a fullscreen editor/terminal still earns its breaks. This only defers
+///      the short eye-breaks: you should still get up for the long break, even
+///      mid-video.
 ///
 /// Neither requires Screen Recording or Microphone permission: we only read
 /// device *state* and window *geometry*, never audio samples or titles.
 enum PresentationGuard {
 
-    static func shouldSuppress() -> Bool {
-        isMicrophoneInUse() || isMediaAppFullscreen()
+    static func shouldSuppress(for type: BreakType) -> Bool {
+        if isMicrophoneInUse() { return true }                 // meeting: defer all
+        if type == .short, isMediaAppFullscreen() { return true }  // video: short only
+        return false
     }
 
     // MARK: - 1. Microphone in use (covers any meeting/call, incl. Feishu)
@@ -48,12 +52,12 @@ enum PresentationGuard {
         return (status == noErr && device != 0) ? device : nil
     }
 
-    // MARK: - 2. A media/meeting app is frontmost and fullscreen
+    // MARK: - 2. A media/meeting app fills the screen
 
-    /// Apps whose *fullscreen* we treat as "don't interrupt": browsers (web
-    /// video, Google Meet), video players, presentation tools, and conferencing
-    /// apps. A fullscreen editor/terminal is deliberately absent — you still
-    /// want eye breaks while coding.
+    /// Apps whose full-screen/maximized window we treat as "don't interrupt":
+    /// browsers (web video, Google Meet), video players, presentation tools, and
+    /// conferencing apps. A fullscreen editor/terminal is deliberately absent —
+    /// you still want eye breaks while coding.
     private static let mediaBundleIDs: Set<String> = [
         // Browsers — fullscreen video, web-based meetings
         "com.google.Chrome", "com.google.Chrome.canary",
@@ -73,22 +77,24 @@ enum PresentationGuard {
         "com.cisco.webexmeetings", "com.webex.meetingmanager",
     ]
 
-    /// True when an allowlisted media/meeting app is frontmost *and* fullscreen.
+    /// True when an allowlisted media/meeting app is frontmost and filling the
+    /// screen (fullscreen *or* maximized).
     private static func isMediaAppFullscreen() -> Bool {
         guard let front = NSWorkspace.shared.frontmostApplication,
               front.activationPolicy == .regular,
               let bundleID = front.bundleIdentifier,
               mediaBundleIDs.contains(bundleID) else { return false }
-        return isFullscreen(front)
+        return fillsScreen(front)
     }
 
-    /// Whether `app` is running fullscreen. macOS exposes this two ways:
-    ///   (a) a normal-level window of the app fills an entire screen (borderless
-    ///       / same-Space fullscreen, common for video players); or
+    /// Whether `app` is filling a screen. macOS exposes this two ways:
+    ///   (a) a normal-level window covers a screen — true fullscreen, *or* a
+    ///       maximized window (which stops below the menu bar and above the
+    ///       Dock; many people watch video this way, so we count it); or
     ///   (b) native fullscreen, which lives on its own Space that a background
     ///       agent can't see — so the app contributes *no* window to our Space.
     ///       (Verified empirically: fullscreen Chrome shows up as exactly this.)
-    private static func isFullscreen(_ app: NSRunningApplication) -> Bool {
+    private static func fillsScreen(_ app: NSRunningApplication) -> Bool {
         let pid = Int(app.processIdentifier)
         let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
         let list = (CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]) ?? []
@@ -98,15 +104,16 @@ enum PresentationGuard {
         for win in list where (win[kCGWindowOwnerPID as String] as? Int) == pid {
             guard (win[kCGWindowLayer as String] as? Int) == 0 else { continue }
             hasWindowHere = true
-            // A window filling an entire screen (incl. the menu-bar strip). A
-            // merely maximized window is ~1 menu-bar shorter, so the `- 2` floor
-            // keeps a maximized browser from counting as fullscreen.
             guard let boundsDict = win[kCGWindowBounds as String] else { continue }
             var rect = CGRect.zero
             guard CGRectMakeWithDictionaryRepresentation(boundsDict as! CFDictionary, &rect)
             else { continue }
+            // Full width, and tall enough to be fullscreen or maximized. The
+            // ~120pt of vertical slack absorbs the menu bar and Dock; a normal
+            // (smaller) window stays well under it, so only media apps the user
+            // has blown up to fill the screen count.
             if screenSizes.contains(where: {
-                rect.width >= $0.width - 2 && rect.height >= $0.height - 2
+                rect.width >= $0.width - 2 && rect.height >= $0.height - 120
             }) { return true }
         }
         return !hasWindowHere

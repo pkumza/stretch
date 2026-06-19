@@ -31,10 +31,11 @@ final class BreakScheduler {
     var onBreakStart: ((BreakType, TimeInterval) -> Void)?
     /// Fired when a break ends or is dismissed (hide the overlay).
     var onBreakEnd: (() -> Void)?
-    /// Asked just before an *automatic* break fires. Returning true defers the
-    /// break (meeting / screen share / fullscreen) without losing its place in
-    /// the cycle. Manual "take break now" ignores this.
-    var shouldSuppressBreak: (() -> Bool)?
+    /// Asked just before an *automatic* break fires, with the break's type.
+    /// Returning true defers the break (meeting / screen share / fullscreen)
+    /// without losing its place in the cycle. Manual "take break now" ignores
+    /// this.
+    var shouldSuppressBreak: ((BreakType) -> Bool)?
 
     /// While a break is being deferred, how soon to re-check whether the user
     /// is free again.
@@ -55,7 +56,7 @@ final class BreakScheduler {
         switch state {
         case .working(let nextBreak, let type):
             if now >= nextBreak {
-                if shouldSuppressBreak?() == true {
+                if shouldSuppressBreak?(type) == true {
                     // Busy (meeting / share / fullscreen): push the same break a
                     // little later and re-check, leaving the cycle untouched.
                     state = .working(nextBreak: now.addingTimeInterval(suppressRecheckSeconds),
