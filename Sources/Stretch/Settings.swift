@@ -11,6 +11,7 @@ final class Settings {
         static let shortDuration = "shortDurationSeconds"
         static let longInterval  = "longIntervalMinutes"
         static let longDuration  = "longDurationMinutes"
+        static let suppressDuringPresentation = "suppressDuringPresentation"
     }
 
     private init() {
@@ -19,6 +20,7 @@ final class Settings {
             Keys.shortDuration: 20,   // lasting 20 seconds
             Keys.longInterval:  60,   // a long break every 60 minutes
             Keys.longDuration:   5,   // lasting 5 minutes
+            Keys.suppressDuringPresentation: true,  // defer breaks in meetings/fullscreen
         ])
     }
 
@@ -38,6 +40,10 @@ final class Settings {
     var longDurationMinutes: Int {
         get { d.integer(forKey: Keys.longDuration) }
         set { d.set(max(1, newValue), forKey: Keys.longDuration) }
+    }
+    var suppressDuringPresentation: Bool {
+        get { d.bool(forKey: Keys.suppressDuringPresentation) }
+        set { d.set(newValue, forKey: Keys.suppressDuringPresentation) }
     }
 
     // Derived values used by the scheduler (in seconds).

@@ -18,6 +18,7 @@ final class PreferencesController: NSObject {
     private var longDurationValue: NSTextField!
 
     private var loginCheckbox: NSButton!
+    private var suppressCheckbox: NSButton!
 
     init(scheduler: BreakScheduler) {
         self.scheduler = scheduler
@@ -35,7 +36,7 @@ final class PreferencesController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 300),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 340),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
@@ -59,9 +60,13 @@ final class PreferencesController: NSObject {
         loginCheckbox = NSButton(checkboxWithTitle: "Launch Stretch at login",
                                  target: self, action: #selector(toggleLogin(_:)))
 
+        suppressCheckbox = NSButton(checkboxWithTitle: "Don't interrupt meetings, screen sharing, or fullscreen",
+                                    target: self, action: #selector(toggleSuppress(_:)))
+        suppressCheckbox.state = settings.suppressDuringPresentation ? .on : .off
+
         let stack = NSStackView(views: [
             shortIntervalRow, shortDurationRow, longIntervalRow, longDurationRow,
-            NSBox.horizontalDivider(), loginCheckbox,
+            NSBox.horizontalDivider(), suppressCheckbox, loginCheckbox,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -119,6 +124,10 @@ final class PreferencesController: NSObject {
         longDurationValue.stringValue  = "\(settings.longDurationMinutes) min"
 
         scheduler.reschedule()
+    }
+
+    @objc private func toggleSuppress(_ sender: NSButton) {
+        settings.suppressDuringPresentation = sender.state == .on
     }
 
     @objc private func toggleLogin(_ sender: NSButton) {

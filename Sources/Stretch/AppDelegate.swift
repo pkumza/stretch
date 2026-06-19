@@ -37,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduler.onBreakEnd = { [weak self] in
             self?.overlay.hide()
         }
+        scheduler.shouldSuppressBreak = {
+            Settings.shared.suppressDuringPresentation && PresentationGuard.shouldSuppress()
+        }
 
         lockMonitor.onLongAway = { [weak self] in
             self?.scheduler.resetAfterAwayBreak()
