@@ -12,6 +12,7 @@ final class Settings {
         static let longInterval  = "longIntervalMinutes"
         static let longDuration  = "longDurationMinutes"
         static let suppressDuringPresentation = "suppressDuringPresentation"
+        static let idlePause = "idlePauseMinutes"
     }
 
     private init() {
@@ -21,6 +22,7 @@ final class Settings {
             Keys.longInterval:  60,   // a long break every 60 minutes
             Keys.longDuration:   5,   // lasting 5 minutes
             Keys.suppressDuringPresentation: true,  // defer breaks in meetings/fullscreen
+            Keys.idlePause: 5,        // treat as "away" after 5 idle minutes
         ])
     }
 
@@ -45,12 +47,17 @@ final class Settings {
         get { d.bool(forKey: Keys.suppressDuringPresentation) }
         set { d.set(newValue, forKey: Keys.suppressDuringPresentation) }
     }
+    var idlePauseMinutes: Int {
+        get { d.integer(forKey: Keys.idlePause) }
+        set { d.set(max(1, newValue), forKey: Keys.idlePause) }
+    }
 
     // Derived values used by the scheduler (in seconds).
     var shortIntervalSeconds: TimeInterval { TimeInterval(shortIntervalMinutes * 60) }
     var shortDurationSeconds: TimeInterval { TimeInterval(shortDurationSecondsValue) }
     var longIntervalSeconds:  TimeInterval { TimeInterval(longIntervalMinutes * 60) }
     var longDurationSeconds:  TimeInterval { TimeInterval(longDurationMinutes * 60) }
+    var idlePauseSeconds:     TimeInterval { TimeInterval(idlePauseMinutes * 60) }
 
     /// How many breaks occur per cycle; the last one of each cycle is a long break.
     /// e.g. long=60, short=20  ->  3 breaks per cycle (short, short, long).

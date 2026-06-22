@@ -11,11 +11,13 @@ final class PreferencesController: NSObject {
     private var shortDurationStepper: NSStepper!
     private var longIntervalStepper: NSStepper!
     private var longDurationStepper: NSStepper!
+    private var idlePauseStepper: NSStepper!
 
     private var shortIntervalValue: NSTextField!
     private var shortDurationValue: NSTextField!
     private var longIntervalValue: NSTextField!
     private var longDurationValue: NSTextField!
+    private var idlePauseValue: NSTextField!
 
     private var loginCheckbox: NSButton!
     private var suppressCheckbox: NSButton!
@@ -36,7 +38,7 @@ final class PreferencesController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 340),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 380),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
@@ -51,11 +53,14 @@ final class PreferencesController: NSObject {
             makeRow("Long break every", value: settings.longIntervalMinutes, min: 5, max: 240, unit: "min")
         let (longDurationRow, lDStep, lDVal) =
             makeRow("Long break lasts", value: settings.longDurationMinutes, min: 1, max: 60, unit: "min")
+        let (idlePauseRow, idStep, idVal) =
+            makeRow("Pause when idle for", value: settings.idlePauseMinutes, min: 1, max: 60, unit: "min")
 
         shortIntervalStepper = sIStep; shortIntervalValue = sIVal
         shortDurationStepper = sDStep; shortDurationValue = sDVal
         longIntervalStepper  = lIStep; longIntervalValue  = lIVal
         longDurationStepper  = lDStep; longDurationValue  = lDVal
+        idlePauseStepper     = idStep; idlePauseValue     = idVal
 
         loginCheckbox = NSButton(checkboxWithTitle: "Launch Stretch at login",
                                  target: self, action: #selector(toggleLogin(_:)))
@@ -66,6 +71,7 @@ final class PreferencesController: NSObject {
 
         let stack = NSStackView(views: [
             shortIntervalRow, shortDurationRow, longIntervalRow, longDurationRow,
+            idlePauseRow,
             NSBox.horizontalDivider(), suppressCheckbox, loginCheckbox,
         ])
         stack.orientation = .vertical
@@ -117,11 +123,13 @@ final class PreferencesController: NSObject {
         settings.shortDurationSecondsValue = shortDurationStepper.integerValue
         settings.longIntervalMinutes      = longIntervalStepper.integerValue
         settings.longDurationMinutes      = longDurationStepper.integerValue
+        settings.idlePauseMinutes         = idlePauseStepper.integerValue
 
         shortIntervalValue.stringValue = "\(settings.shortIntervalMinutes) min"
         shortDurationValue.stringValue = "\(settings.shortDurationSecondsValue) sec"
         longIntervalValue.stringValue  = "\(settings.longIntervalMinutes) min"
         longDurationValue.stringValue  = "\(settings.longDurationMinutes) min"
+        idlePauseValue.stringValue     = "\(settings.idlePauseMinutes) min"
 
         scheduler.reschedule()
     }

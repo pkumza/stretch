@@ -40,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduler.shouldSuppressBreak = { type in
             Settings.shared.suppressDuringPresentation && PresentationGuard.shouldSuppress(for: type)
         }
+        scheduler.isUserAway = {
+            IdleMonitor.secondsSinceInput() >= Settings.shared.idlePauseSeconds
+        }
 
         lockMonitor.onLongAway = { [weak self] in
             self?.scheduler.resetAfterAwayBreak()

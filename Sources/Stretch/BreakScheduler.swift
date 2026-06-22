@@ -36,6 +36,9 @@ final class BreakScheduler {
     /// without losing its place in the cycle. Manual "take break now" ignores
     /// this.
     var shouldSuppressBreak: ((BreakType) -> Bool)?
+    /// Returns true when the user is idle/away (no input for a while). Being
+    /// away is itself a rest, so we neither show nor count a break.
+    var isUserAway: (() -> Bool)?
 
     /// While a break is being deferred, how soon to re-check whether the user
     /// is free again.
@@ -55,7 +58,13 @@ final class BreakScheduler {
         let now = Date()
         switch state {
         case .working(let nextBreak, let type):
-            if now >= nextBreak {
+            if isUserAway?() == true {
+                // Idle/away counts as rest: don't show or record a break, and
+                // hold the next one a full work interval out so you don't get a
+                // break the instant you sit back down.
+                state = .working(nextBreak: now.addingTimeInterval(settings.shortIntervalSeconds),
+                                 nextType: type)
+            } else if now >= nextBreak {
                 if shouldSuppressBreak?(type) == true {
                     // Busy (meeting / share / fullscreen): push the same break a
                     // little later and re-check, leaving the cycle untouched.
