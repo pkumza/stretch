@@ -58,8 +58,14 @@ final class HistoryController: NSObject {
 
     private func refresh() {
         guard let grid else { return }
-        // Drop every row except the header.
-        while grid.numberOfRows > 1 { grid.removeRow(at: grid.numberOfRows - 1) }
+        // Drop every row except the header. NSGridView.removeRow(at:) detaches
+        // the row but leaves its cell views in the hierarchy, so remove them by
+        // hand — otherwise stale numbers pile up on top of each other.
+        while grid.numberOfRows > 1 {
+            let row = grid.row(at: grid.numberOfRows - 1)
+            for i in 0..<row.numberOfCells { row.cell(at: i).contentView?.removeFromSuperview() }
+            grid.removeRow(at: grid.numberOfRows - 1)
+        }
 
         let cal = Calendar.current
         let now = Date()
