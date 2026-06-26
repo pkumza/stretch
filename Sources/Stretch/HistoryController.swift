@@ -4,6 +4,8 @@ import AppKit
 final class HistoryController: NSObject {
     private var window: NSWindow?
     private var grid: NSGridView?
+    private var medGrid: NSGridView?
+    private var medTitle: NSTextField?
 
     func show() {
         if window == nil { window = buildWindow() }
@@ -16,30 +18,27 @@ final class HistoryController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 240),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
         win.title = "Break History"
         win.isReleasedWhenClosed = false
 
-        let header = ["Period", "Rested", "Rest time", "Skipped", "Snoozed"]
-        let rows: [[NSView]] = [header.map { Self.head($0) }]
-        let grid = NSGridView(views: rows)
-        grid.translatesAutoresizingMaskIntoConstraints = false
-        grid.rowSpacing = 10
-        grid.columnSpacing = 24
-        grid.column(at: 0).xPlacement = .leading
-        for c in 1..<header.count { grid.column(at: c).xPlacement = .trailing }
+        let grid = Self.makeGrid(["Period", "Rested", "Rest time", "Skipped", "Snoozed"])
         self.grid = grid
+        let title = Self.sectionTitle("Your breaks")
 
-        let title = NSTextField(labelWithString: "Your breaks")
-        title.font = .systemFont(ofSize: 18, weight: .bold)
+        let medGrid = Self.makeGrid(["Period", "Taken", "Skipped", "Missed", "Adherence"])
+        self.medGrid = medGrid
+        let medTitle = Self.sectionTitle("Your medications")
+        self.medTitle = medTitle
 
-        let stack = NSStackView(views: [title, grid])
+        let stack = NSStackView(views: [title, grid, medTitle, medGrid])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
+        stack.setCustomSpacing(28, after: grid)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
         let content = NSView()
@@ -54,39 +53,78 @@ final class HistoryController: NSObject {
         return win
     }
 
+    private static func makeGrid(_ header: [String]) -> NSGridView {
+        let grid = NSGridView(views: [header.map { Self.head($0) }])
+        grid.translatesAutoresizingMaskIntoConstraints = false
+        grid.rowSpacing = 10
+        grid.columnSpacing = 24
+        grid.column(at: 0).xPlacement = .leading
+        for c in 1..<header.count { grid.column(at: c).xPlacement = .trailing }
+        return grid
+    }
+
+    private static func sectionTitle(_ text: String) -> NSTextField {
+        let title = NSTextField(labelWithString: text)
+        title.font = .systemFont(ofSize: 18, weight: .bold)
+        return title
+    }
+
     // MARK: - Data
 
-    private func refresh() {
-        guard let grid else { return }
-        // Drop every row except the header. NSGridView.removeRow(at:) detaches
-        // the row but leaves its cell views in the hierarchy, so remove them by
-        // hand — otherwise stale numbers pile up on top of each other.
-        while grid.numberOfRows > 1 {
-            let row = grid.row(at: grid.numberOfRows - 1)
-            for i in 0..<row.numberOfCells { row.cell(at: i).contentView?.removeFromSuperview() }
-            grid.removeRow(at: grid.numberOfRows - 1)
-        }
-
+    /// (Today / 7d / 30d / All time) start dates.
+    private static func periods() -> [(String, Date)] {
         let cal = Calendar.current
-        let now = Date()
-        let startOfToday = cal.startOfDay(for: now)
-        let periods: [(String, Date)] = [
+        let startOfToday = cal.startOfDay(for: Date())
+        return [
             ("Today",        startOfToday),
             ("Last 7 days",  cal.date(byAdding: .day, value: -7, to: startOfToday)!),
             ("Last 30 days", cal.date(byAdding: .day, value: -30, to: startOfToday)!),
             ("All time",     Date(timeIntervalSince1970: 0)),
         ]
+    }
 
-        let store = HistoryStore.shared
-        for (name, since) in periods {
-            let s = store.summary(since: since)
-            grid.addRow(with: [
-                Self.cell(name, bold: true),
-                Self.cell("\(s.restCount)"),
-                Self.cell(Self.duration(s.restSeconds)),
-                Self.cell("\(s.skipCount)"),
-                Self.cell("\(s.snoozeCount)"),
-            ])
+    /// NSGridView.removeRow(at:) detaches a row but leaves its cell views in the
+    /// hierarchy, so remove them by hand — otherwise stale numbers pile up.
+    private static func clearRows(_ grid: NSGridView) {
+        while grid.numberOfRows > 1 {
+            let row = grid.row(at: grid.numberOfRows - 1)
+            for i in 0..<row.numberOfCells { row.cell(at: i).contentView?.removeFromSuperview() }
+            grid.removeRow(at: grid.numberOfRows - 1)
+        }
+    }
+
+    private func refresh() {
+        if let grid {
+            Self.clearRows(grid)
+            for (name, since) in Self.periods() {
+                let s = HistoryStore.shared.summary(since: since)
+                grid.addRow(with: [
+                    Self.cell(name, bold: true),
+                    Self.cell("\(s.restCount)"),
+                    Self.cell(Self.duration(s.restSeconds)),
+                    Self.cell("\(s.skipCount)"),
+                    Self.cell("\(s.snoozeCount)"),
+                ])
+            }
+        }
+
+        // Medication section — hidden entirely when the feature is dormant.
+        let dormant = MedicationConfigStore.shared.medications.isEmpty
+            && MedicationLogStore.shared.events.isEmpty
+        medTitle?.isHidden = dormant
+        medGrid?.isHidden = dormant
+        if let medGrid, !dormant {
+            Self.clearRows(medGrid)
+            for (name, since) in Self.periods() {
+                let s = MedicationLogStore.shared.summary(since: since)
+                medGrid.addRow(with: [
+                    Self.cell(name, bold: true),
+                    Self.cell("\(s.taken)"),
+                    Self.cell("\(s.skipped)"),
+                    Self.cell("\(s.missed)"),
+                    Self.cell("\(s.adherencePct)%"),
+                ])
+            }
         }
     }
 

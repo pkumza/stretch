@@ -8,6 +8,7 @@ final class MenuBarController: NSObject {
 
     var onPreferences: (() -> Void)?
     var onHistory: (() -> Void)?
+    var onMedications: (() -> Void)?
 
     init(scheduler: BreakScheduler) {
         self.scheduler = scheduler
@@ -43,6 +44,7 @@ final class MenuBarController: NSObject {
         pauseItem.submenu = pauseMenu
         menu.addItem(pauseItem)
 
+        menu.addItem(item("Medications…", #selector(openMeds)))
         menu.addItem(item("History…", #selector(openHistory)))
         menu.addItem(item("Preferences…", #selector(openPrefs), key: ","))
         menu.addItem(.separator())
@@ -104,6 +106,7 @@ final class MenuBarController: NSObject {
     @objc private func resumeNow()  { scheduler.resume() }
     @objc private func openPrefs()  { onPreferences?() }
     @objc private func openHistory() { onHistory?() }
+    @objc private func openMeds()   { onMedications?() }
     @objc private func quit()       { NSApp.terminate(nil) }
 
     @objc private func about() {

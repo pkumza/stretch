@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menu: MenuBarController!
     private var prefs: PreferencesController?
     private let history = HistoryController()
+    private let medsEditor = MedicationEditorController()
     private let lockMonitor = LockMonitor()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -17,10 +18,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu = MenuBarController(scheduler: scheduler)
         menu.onPreferences = { [weak self] in self?.showPreferences() }
         menu.onHistory = { [weak self] in self?.history.show() }
+        menu.onMedications = { [weak self] in self?.medsEditor.show() }
+
+        MedicationManager.shared.start()
 
         scheduler.onTick = { [weak self] state in
             guard let self else { return }
             self.menu.update(state: state)
+            MedicationManager.shared.tick()
             if case .breaking(_, let ends) = state {
                 self.overlay.update(remaining: ends.timeIntervalSinceNow)
             }
@@ -30,8 +35,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.overlay.show(
                 type: type,
                 duration: duration,
+                reminders: MedicationManager.shared.dueDoses(),
                 onSkip: { [weak self] in self?.scheduler.skipBreak() },
-                onSnooze: { [weak self] in self?.scheduler.snoozeBreak() }
+                onSnooze: { [weak self] in self?.scheduler.snoozeBreak() },
+                onDoseAction: { dose, action in
+                    MedicationManager.shared.resolve(dose, action)
+                }
             )
         }
         scheduler.onBreakEnd = { [weak self] in
@@ -52,7 +61,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func showPreferences() {
-        if prefs == nil { prefs = PreferencesController(scheduler: scheduler) }
+        if prefs == nil {
+            prefs = PreferencesController(scheduler: scheduler)
+            prefs?.onEditMedications = { [weak self] in self?.medsEditor.show() }
+        }
         prefs?.show()
     }
 }
