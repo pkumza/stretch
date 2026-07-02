@@ -1,9 +1,11 @@
 import Foundation
+import os
 
 enum BreakType: Equatable {
     case short, long
 
     var isLong: Bool { self == .long }
+    var logName: String { isLong ? "long" : "short" }
 
     var title: String {
         isLong ? "Time for a long break" : "Time for a short break"
@@ -19,6 +21,8 @@ enum SchedulerState {
 /// The engine. A single 1-second timer drives the whole state machine and
 /// reports changes through the closures below.
 final class BreakScheduler {
+    private static let logger = Logger(subsystem: "com.ziang.stretch", category: "BreakScheduler")
+
     private(set) var state: SchedulerState = .paused(until: nil)
 
     private var timer: Timer?
@@ -68,6 +72,7 @@ final class BreakScheduler {
                 if shouldSuppressBreak?(type) == true {
                     // Busy (meeting / share / fullscreen): push the same break a
                     // little later and re-check, leaving the cycle untouched.
+                    Self.logger.info("Deferring \(type.logName, privacy: .public) break for \(self.suppressRecheckSeconds, privacy: .public)s because PresentationGuard suppressed it")
                     state = .working(nextBreak: now.addingTimeInterval(suppressRecheckSeconds),
                                      nextType: type)
                 } else {

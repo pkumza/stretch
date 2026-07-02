@@ -1,6 +1,7 @@
 import AppKit
 import CoreAudio
 import CoreGraphics
+import os
 
 /// Best-effort, permission-free detection of "don't interrupt me right now"
 /// situations, so the scheduler can defer a break overlay instead of covering
@@ -19,11 +20,39 @@ import CoreGraphics
 /// Neither requires Screen Recording or Microphone permission: we only read
 /// device *state* and window *geometry*, never audio samples or titles.
 enum PresentationGuard {
+    private static let logger = Logger(subsystem: "com.ziang.stretch", category: "PresentationGuard")
+
+    enum HoldReason {
+        case microphone
+        case fullscreenMedia(bundleID: String, name: String)
+
+        var menuDescription: String {
+            switch self {
+            case .microphone:
+                return "Temporarily held: microphone in use"
+            case .fullscreenMedia(_, let name):
+                return "Temporarily held: \(name) is fullscreen"
+            }
+        }
+    }
 
     static func shouldSuppress(for type: BreakType) -> Bool {
-        if isMicrophoneInUse() { return true }                 // meeting: defer all
-        if type == .short, isMediaAppFullscreen() { return true }  // video: short only
-        return false
+        guard let reason = holdReason(for: type) else { return false }
+        switch reason {
+        case .microphone:
+            logger.info("Suppressing \(type.logName, privacy: .public) break: microphone input device is running")
+        case .fullscreenMedia(let bundleID, let name):
+            logger.info("Suppressing short break: frontmost media app is fullscreen or maximized bundleID=\(bundleID, privacy: .public) app=\(name, privacy: .public)")
+        }
+        return true
+    }
+
+    static func holdReason(for type: BreakType) -> HoldReason? {
+        if isMicrophoneInUse() { return .microphone }
+        if type == .short, let front = mediaAppFullscreen() {
+            return .fullscreenMedia(bundleID: front.bundleID, name: front.name)
+        }
+        return nil
     }
 
     // MARK: - 1. Microphone in use (covers any meeting/call, incl. Feishu)
@@ -79,12 +108,13 @@ enum PresentationGuard {
 
     /// True when an allowlisted media/meeting app is frontmost and filling the
     /// screen (fullscreen *or* maximized).
-    private static func isMediaAppFullscreen() -> Bool {
+    private static func mediaAppFullscreen() -> (bundleID: String, name: String)? {
         guard let front = NSWorkspace.shared.frontmostApplication,
               front.activationPolicy == .regular,
               let bundleID = front.bundleIdentifier,
-              mediaBundleIDs.contains(bundleID) else { return false }
-        return fillsScreen(front)
+              mediaBundleIDs.contains(bundleID),
+              fillsScreen(front) else { return nil }
+        return (bundleID, front.localizedName ?? "unknown")
     }
 
     /// Whether `app` is filling a screen. macOS exposes this two ways:

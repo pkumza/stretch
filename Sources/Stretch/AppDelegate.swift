@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         scheduler.onTick = { [weak self] state in
             guard let self else { return }
-            self.menu.update(state: state)
+            self.menu.update(state: state, holdReason: self.holdReason(for: state))
             MedicationManager.shared.tick()
             if case .breaking(_, let ends) = state {
                 self.overlay.update(remaining: ends.timeIntervalSinceNow)
@@ -58,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         scheduler.start()
+    }
+
+    private func holdReason(for state: SchedulerState) -> PresentationGuard.HoldReason? {
+        guard Settings.shared.suppressDuringPresentation,
+              case .working(_, let type) = state else { return nil }
+        return PresentationGuard.holdReason(for: type)
     }
 
     private func showPreferences() {

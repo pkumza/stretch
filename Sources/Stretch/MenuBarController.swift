@@ -66,16 +66,21 @@ final class MenuBarController: NSObject {
 
     // MARK: - Live updates
 
-    func update(state: SchedulerState) {
+    func update(state: SchedulerState, holdReason: PresentationGuard.HoldReason? = nil) {
         guard let button = statusItem.button else { return }
         switch state {
         case .working(let nextBreak, let type):
             let r = max(0, nextBreak.timeIntervalSinceNow)
             button.title = " " + Self.clock(r)
-            setImage("figure.mind.and.body")
-            statusLine.title = type.isLong
-                ? "Next: long break in \(Self.clock(r))"
-                : "Next: break in \(Self.clock(r))"
+            if let holdReason {
+                setImage("figure.mind.and.body.circle")
+                statusLine.title = holdReason.menuDescription + " — " + Self.clock(r)
+            } else {
+                setImage("figure.mind.and.body")
+                statusLine.title = type.isLong
+                    ? "Next: long break in \(Self.clock(r))"
+                    : "Next: break in \(Self.clock(r))"
+            }
 
         case .breaking(let type, let ends):
             let r = max(0, ends.timeIntervalSinceNow)
