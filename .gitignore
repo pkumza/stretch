@@ -3,3 +3,4 @@
 Stretch.app/
 *.xcodeproj
 .DS_Store
+message.jsonl

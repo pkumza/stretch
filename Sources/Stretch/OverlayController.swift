@@ -280,23 +280,7 @@ final class OverlayController: NSObject {
         return l
     }
 
-    private static let shortTips = [
-        "Look away — focus on something 20 feet away.",
-        "Blink a few times and relax your eyes.",
-        "Roll your shoulders back and breathe.",
-        "Unclench your jaw and drop your shoulders.",
-        "Stretch your neck gently, side to side.",
-    ]
-    private static let longTips = [
-        "Stand up and walk around for a few minutes.",
-        "Get a glass of water and stretch your legs.",
-        "Step away from the screen — look out a window.",
-        "Do a few stretches and shake out your hands.",
-        "Take a short walk. Your back will thank you.",
-    ]
-
     private static func tip(for type: BreakType) -> String {
-        let pool = type.isLong ? longTips : shortTips
-        return pool.randomElement() ?? ""
+        MessageStore.shared.randomMessage(for: type)
     }
 }

@@ -20,6 +20,9 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 if [ -f Assets/Stretch.icns ]; then
     cp Assets/Stretch.icns "$APP/Contents/Resources/Stretch.icns"
 fi
+if [ -f message.jsonl ]; then
+    cp message.jsonl "$APP/Contents/Resources/message.jsonl"
+fi
 
 # Ad-hoc sign so macOS is happy launching it locally.
 codesign --force --deep --sign - "$APP" 2>/dev/null || true
