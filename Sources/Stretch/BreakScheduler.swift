@@ -36,7 +36,7 @@ final class BreakScheduler {
     /// Fired when a break ends or is dismissed (hide the overlay).
     var onBreakEnd: (() -> Void)?
     /// Asked just before an *automatic* break fires, with the break's type.
-    /// Returning true defers the break (meeting / screen share / fullscreen)
+    /// Returning true defers the break (currently: microphone in use)
     /// without losing its place in the cycle. Manual "take break now" ignores
     /// this.
     var shouldSuppressBreak: ((BreakType) -> Bool)?
@@ -70,7 +70,7 @@ final class BreakScheduler {
                                  nextType: type)
             } else if now >= nextBreak {
                 if shouldSuppressBreak?(type) == true {
-                    // Busy (meeting / share / fullscreen): push the same break a
+                    // Busy (microphone in use): push the same break a
                     // little later and re-check, leaving the cycle untouched.
                     Self.logger.info("Deferring \(type.logName, privacy: .public) break for \(self.suppressRecheckSeconds, privacy: .public)s because PresentationGuard suppressed it")
                     state = .working(nextBreak: now.addingTimeInterval(suppressRecheckSeconds),

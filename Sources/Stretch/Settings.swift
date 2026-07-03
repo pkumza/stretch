@@ -30,7 +30,7 @@ final class Settings {
             Keys.shortDuration: 20,   // lasting 20 seconds
             Keys.longInterval:  60,   // a long break every 60 minutes
             Keys.longDuration:   5,   // lasting 5 minutes
-            Keys.suppressDuringPresentation: true,  // defer breaks in meetings/fullscreen
+            Keys.suppressDuringPresentation: true,  // defer breaks only when the microphone is active
             Keys.idlePause: 5,        // treat as "away" after 5 idle minutes
             Keys.breakfastMin: 8 * 60,        // 08:00
             Keys.lunchMin:     12 * 60 + 30,  // 12:30

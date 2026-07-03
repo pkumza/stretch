@@ -101,7 +101,7 @@ final class PreferencesController: NSObject {
         loginCheckbox = NSButton(checkboxWithTitle: "Launch Stretch at login",
                                  target: self, action: #selector(toggleLogin(_:)))
 
-        suppressCheckbox = NSButton(checkboxWithTitle: "Don't interrupt meetings, screen sharing, or fullscreen",
+        suppressCheckbox = NSButton(checkboxWithTitle: "Don't interrupt when the microphone is in use",
                                     target: self, action: #selector(toggleSuppress(_:)))
         suppressCheckbox.state = settings.suppressDuringPresentation ? .on : .off
 
