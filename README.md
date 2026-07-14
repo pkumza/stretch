@@ -19,6 +19,11 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
 - **Away-aware** — if the screen is locked for more than 30 seconds, that counts
   as a rest: the next-break countdown and the long-break cycle reset on unlock,
   so you're not nagged the moment you return. (An active **Pause** is respected.)
+- **Bedtime paper mode** — at a time you set (default 21:40–07:00), the screen
+  gets a soft, click-through paper wash (warm, slightly dim, faint grain) so
+  the Mac feels quieter and reminds you to sleep. No Screen Recording
+  permission. Turn on in **Preferences…**, or use the menu to enable / dismiss
+  until morning / snooze 15–60 min. Break overlays still appear on top when due.
 - Lives in the **menu bar** with a live countdown to the next break.
 - No Dock icon, no Electron, ~2 MB, no runtime dependencies.
 
@@ -52,9 +57,10 @@ swift run
 - **Take a short / long break now** — trigger a break immediately.
 - **Reset timer** — restart the countdown to the next break.
 - **Pause** — for 30 min, 1 hour, or indefinitely; **Resume** to continue.
+- **Bedtime paper** — status line, turn on / dismiss until morning, snooze.
 - **Medications…** — add/edit medications & supplements to be reminded about.
 - **History…** — break stats over time (stored locally, see below).
-- **Preferences…** — change intervals, durations, meal times, and launch-at-login.
+- **Preferences…** — change intervals, durations, bedtime window, meal times, and launch-at-login.
 
 ## History
 
@@ -137,8 +143,11 @@ Resources/Info.plist          Bundle metadata (LSUIElement = menu-bar app)
 build.sh                      Compile + assemble Stretch.app + ad-hoc sign
 Sources/Stretch/
   main.swift                  Entry point (.accessory activation policy)
-  AppDelegate.swift           Wires scheduler ↔ menu ↔ overlay
+  AppDelegate.swift           Wires scheduler ↔ menu ↔ overlay ↔ bedtime
   BreakScheduler.swift        The timing state machine
+  BedtimeScheduler.swift      Bedtime window / snooze / dismiss logic
+  PaperModeController.swift   Click-through paper wash on every display
+  DisplayGamma.swift          Optional warm/dim gamma (restored on quit)
   MenuBarController.swift     Status item + menu + countdown label
   OverlayController.swift     Full-screen break overlay windows
   PreferencesController.swift Settings window

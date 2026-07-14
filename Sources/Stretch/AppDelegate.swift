@@ -3,6 +3,8 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let scheduler = BreakScheduler()
     private let overlay = OverlayController()
+    private let paper = PaperModeController()
+    private let bedtime = BedtimeScheduler()
     private var menu: MenuBarController!
     private var prefs: PreferencesController?
     private let history = HistoryController()
@@ -15,17 +17,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
 
-        menu = MenuBarController(scheduler: scheduler)
+        menu = MenuBarController(scheduler: scheduler, bedtime: bedtime)
         menu.onPreferences = { [weak self] in self?.showPreferences() }
         menu.onHistory = { [weak self] in self?.history.show() }
         menu.onMedications = { [weak self] in self?.medsEditor.show() }
+        menu.onBedtimeSettingsChanged = { [weak self] in
+            self?.bedtime.refresh()
+            if self?.bedtime.isActive == true {
+                self?.paper.refreshAppearance()
+                self?.applyGammaIfNeeded(active: true)
+            }
+        }
 
         MedicationManager.shared.start()
+
+        bedtime.onChange = { [weak self] active in
+            guard let self else { return }
+            self.paper.setActive(active)
+            self.applyGammaIfNeeded(active: active)
+            self.menu.updateBedtime(active: active)
+        }
 
         scheduler.onTick = { [weak self] state in
             guard let self else { return }
             self.menu.update(state: state, holdReason: self.holdReason(for: state))
             MedicationManager.shared.tick()
+            self.bedtime.tick()
             if case .breaking(_, let ends) = state {
                 self.overlay.update(remaining: ends.timeIntervalSinceNow)
             }
@@ -57,7 +74,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.scheduler.resetAfterAwayBreak()
         }
 
+        bedtime.start()
         scheduler.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        paper.setActive(false)
+        DisplayGamma.restore()
+    }
+
+    private func applyGammaIfNeeded(active: Bool) {
+        // Gamma is the transition-safe dimming layer: macOS hides NSWindow overlays
+        // during four-finger Space swipes, but the display transfer table stays on.
+        if active {
+            DisplayGamma.applyBedtime(intensity: Settings.shared.paperIntensity)
+        } else {
+            DisplayGamma.restore()
+        }
     }
 
     private func holdReason(for state: SchedulerState) -> PresentationGuard.HoldReason? {
@@ -68,8 +101,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPreferences() {
         if prefs == nil {
-            prefs = PreferencesController(scheduler: scheduler)
+            prefs = PreferencesController(scheduler: scheduler, bedtime: bedtime)
             prefs?.onEditMedications = { [weak self] in self?.medsEditor.show() }
+            prefs?.onBedtimeSettingsChanged = { [weak self] in
+                self?.bedtime.refresh()
+                if self?.bedtime.isActive == true {
+                    self?.paper.refreshAppearance()
+                    self?.applyGammaIfNeeded(active: true)
+                } else {
+                    self?.paper.setActive(false)
+                    self?.applyGammaIfNeeded(active: false)
+                }
+                self?.menu.updateBedtime(active: self?.bedtime.isActive == true)
+            }
         }
         prefs?.show()
     }
