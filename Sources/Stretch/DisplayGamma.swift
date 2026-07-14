@@ -16,23 +16,30 @@ enum DisplayGamma {
 
     private static var backups: [Backup] = []
     private static var applied = false
-    private static var lastIntensity: Settings.PaperIntensity?
 
-    static func applyBedtime(intensity: Settings.PaperIntensity) {
-        // Avoid restore→reapply flicker when called again with the same intensity
-        // (e.g. every Space swipe). Still rewrite the table so a reset is corrected.
+    /// `progress` 0 = normal display, 1 = full bedtime curve.
+    static func apply(progress: Float, intensity: Settings.PaperIntensity) {
+        let p = max(0, min(1, progress))
+        if p <= 0.001 {
+            restore()
+            return
+        }
         if !applied {
             captureBackups()
         }
-        lastIntensity = intensity
-        writeTable(intensity: intensity)
+        let warm = Float(intensity.gammaWarmth) * p
+        let dim = 1 + (Float(intensity.gammaDim) - 1) * p
+        writeTable(warm: warm, dim: dim)
         applied = true
+    }
+
+    static func applyBedtime(intensity: Settings.PaperIntensity) {
+        apply(progress: 1, intensity: intensity)
     }
 
     static func restore() {
         guard applied || !backups.isEmpty else {
             CGDisplayRestoreColorSyncSettings()
-            lastIntensity = nil
             return
         }
         for b in backups {
@@ -41,7 +48,6 @@ enum DisplayGamma {
         }
         backups.removeAll()
         applied = false
-        lastIntensity = nil
         CGDisplayRestoreColorSyncSettings()
     }
 
@@ -69,7 +75,7 @@ enum DisplayGamma {
         }
     }
 
-    private static func writeTable(intensity: Settings.PaperIntensity) {
+    private static func writeTable(warm: Float, dim: Float) {
         let capacity: UInt32 = 256
         var red = [CGGammaValue](repeating: 0, count: Int(capacity))
         var green = [CGGammaValue](repeating: 0, count: Int(capacity))
@@ -79,12 +85,8 @@ enum DisplayGamma {
         var displays = [CGDirectDisplayID](repeating: 0, count: 16)
         guard CGGetActiveDisplayList(16, &displays, &displayCount) == .success else { return }
 
-        let warm = Float(intensity.gammaWarmth)
-        let dim = Float(intensity.gammaDim)
-
         for j in 0..<Int(capacity) {
             let t = CGGammaValue(j) / CGGammaValue(capacity - 1)
-            // Gentle toe + hard ceiling = clearly dimmer without crushing blacks oddly.
             let v = powf(t, 1.12) * dim
             red[j] = min(1, v * (1 + warm * 0.10))
             green[j] = min(1, v * (1 + warm * 0.02))

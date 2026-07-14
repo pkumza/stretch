@@ -29,6 +29,7 @@ final class Settings {
         static let bedtimeEndMin   = "bedtimeEndMin"
         static let paperIntensity  = "paperIntensity"
         static let bedtimeUseGamma = "bedtimeUseGamma"
+        static let bedtimeUseGrayscale = "bedtimeUseGrayscale"
         static let bedtimeSnoozeUntil    = "bedtimeSnoozeUntil"
         static let bedtimeDismissedUntil = "bedtimeDismissedUntil"
         static let bedtimeForceUntil     = "bedtimeForceUntil"
@@ -56,13 +57,7 @@ final class Settings {
             }
         }
         var dimAlpha: CGFloat { 0 }
-        var grainAlpha: CGFloat {
-            switch self {
-            case .light:  return 0.02
-            case .medium: return 0.035
-            case .strong: return 0.05
-            }
-        }
+        var grainAlpha: CGFloat { 0 }
         var gammaWarmth: CGFloat {
             switch self {
             case .light:  return 0.50
@@ -100,6 +95,7 @@ final class Settings {
             Keys.bedtimeEndMin:   7 * 60,       // 07:00
             Keys.paperIntensity: PaperIntensity.medium.rawValue,
             Keys.bedtimeUseGamma: true,
+            Keys.bedtimeUseGrayscale: false,
         ])
     }
 
@@ -179,6 +175,11 @@ final class Settings {
     var bedtimeUseGamma: Bool {
         get { d.bool(forKey: Keys.bedtimeUseGamma) }
         set { d.set(newValue, forKey: Keys.bedtimeUseGamma) }
+    }
+    /// When on, also enable system Accessibility Color Filters → Grayscale.
+    var bedtimeUseGrayscale: Bool {
+        get { d.bool(forKey: Keys.bedtimeUseGrayscale) }
+        set { d.set(newValue, forKey: Keys.bedtimeUseGrayscale) }
     }
     var bedtimeSnoozeUntil: Date {
         get { Date(timeIntervalSince1970: d.double(forKey: Keys.bedtimeSnoozeUntil)) }

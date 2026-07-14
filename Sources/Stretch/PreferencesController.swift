@@ -35,6 +35,8 @@ final class PreferencesController: NSObject {
     private var bedtimeStartPicker: NSDatePicker!
     private var bedtimeEndPicker: NSDatePicker!
     private var intensityControl: NSSegmentedControl!
+    private var bedtimeGammaCheckbox: NSButton!
+    private var bedtimeGrayscaleCheckbox: NSButton!
 
     private var loginCheckbox: NSButton!
     private var suppressCheckbox: NSButton!
@@ -62,7 +64,7 @@ final class PreferencesController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 780),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 860),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
@@ -133,8 +135,15 @@ final class PreferencesController: NSObject {
         intensityRow.orientation = .horizontal
         intensityRow.spacing = 10
 
+        bedtimeGammaCheckbox = NSButton(
+            checkboxWithTitle: "Warm & dim via display gamma (recommended)",
+            target: self, action: #selector(bedtimeChanged))
+        bedtimeGrayscaleCheckbox = NSButton(
+            checkboxWithTitle: "Also enable system grayscale (Color Filters)",
+            target: self, action: #selector(bedtimeChanged))
+
         let bedtimeHint = NSTextField(wrappingLabelWithString:
-            "Brightness comes from display gamma (stable across desktop swipes). The paper layer is only a faint warm tint, so it barely changes luminance if macOS hides it mid-swipe.")
+            "Brightness comes from display gamma (stable across desktop swipes). The paper layer is a faint warm tint. Optional grayscale uses Accessibility Color Filters — no Screen Recording. Shortcuts: ⌘⇧B toggle, ⌘⇧S snooze 15 min.")
         bedtimeHint.font = .systemFont(ofSize: 11)
         bedtimeHint.textColor = .secondaryLabelColor
         bedtimeHint.preferredMaxLayoutWidth = 400
@@ -151,7 +160,8 @@ final class PreferencesController: NSObject {
             idlePauseRow,
             NSBox.horizontalDivider(), suppressCheckbox, loginCheckbox,
             NSBox.horizontalDivider(), bedtimeHeader,
-            bedtimeEnabledCheckbox, bedStartRow, bedEndRow, intensityRow, bedtimeHint,
+            bedtimeEnabledCheckbox, bedStartRow, bedEndRow, intensityRow,
+            bedtimeGammaCheckbox, bedtimeGrayscaleCheckbox, bedtimeHint,
             NSBox.horizontalDivider(), medsHeader,
             breakfastRow, lunchRow, dinnerRow, wakeStartRow, wakeEndRow,
             leadRow, expiryRow, editMedsButton,
@@ -238,6 +248,8 @@ final class PreferencesController: NSObject {
         bedtimeStartPicker.dateValue = Self.date(fromMinutes: settings.bedtimeStartMin)
         bedtimeEndPicker.dateValue = Self.date(fromMinutes: settings.bedtimeEndMin)
         intensityControl.selectedSegment = settings.paperIntensity.rawValue
+        bedtimeGammaCheckbox.state = settings.bedtimeUseGamma ? .on : .off
+        bedtimeGrayscaleCheckbox.state = settings.bedtimeUseGrayscale ? .on : .off
     }
 
     // MARK: - Actions
@@ -281,6 +293,8 @@ final class PreferencesController: NSObject {
         settings.bedtimeEndMin = Self.minutes(from: bedtimeEndPicker.dateValue)
         let seg = intensityControl.selectedSegment
         settings.paperIntensity = Settings.PaperIntensity(rawValue: seg) ?? .medium
+        settings.bedtimeUseGamma = bedtimeGammaCheckbox.state == .on
+        settings.bedtimeUseGrayscale = bedtimeGrayscaleCheckbox.state == .on
         // Clearing snooze/dismiss when re-enabling schedule so it can take effect tonight.
         if settings.bedtimeEnabled {
             settings.bedtimeSnoozeUntil = .distantPast

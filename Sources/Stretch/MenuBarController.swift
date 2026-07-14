@@ -65,6 +65,12 @@ final class MenuBarController: NSObject {
         snoozeItem.submenu = snoozeMenu
         menu.addItem(snoozeItem)
 
+        let hotkeyHint = NSMenuItem(
+            title: "Shortcuts: ⌘⇧B toggle · ⌘⇧S snooze 15m",
+            action: nil, keyEquivalent: "")
+        hotkeyHint.isEnabled = false
+        menu.addItem(hotkeyHint)
+
         menu.addItem(.separator())
         menu.addItem(item("Medications…", #selector(openMeds)))
         menu.addItem(item("History…", #selector(openHistory)))
