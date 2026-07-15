@@ -1,10 +1,11 @@
 import AppKit
 import ServiceManagement
 
-/// A small settings window: intervals, durations, and launch-at-login.
+/// A small settings window: intervals, durations, bedtime paper, and launch-at-login.
 final class PreferencesController: NSObject {
     private var window: NSWindow?
     private let scheduler: BreakScheduler
+    private let bedtime: BedtimeScheduler
     private let settings = Settings.shared
 
     private var shortIntervalStepper: NSStepper!
@@ -30,20 +31,31 @@ final class PreferencesController: NSObject {
     private var wakeStartPicker: NSDatePicker!
     private var wakeEndPicker: NSDatePicker!
 
+    private var bedtimeEnabledCheckbox: NSButton!
+    private var bedtimeStartPicker: NSDatePicker!
+    private var bedtimeEndPicker: NSDatePicker!
+    private var intensityControl: NSSegmentedControl!
+    private var bedtimeGammaCheckbox: NSButton!
+    private var bedtimeGrayscaleCheckbox: NSButton!
+
     private var loginCheckbox: NSButton!
     private var suppressCheckbox: NSButton!
 
     /// Opens the medication editor (wired by AppDelegate).
     var onEditMedications: (() -> Void)?
+    /// Fired when bedtime prefs change so paper mode can refresh.
+    var onBedtimeSettingsChanged: (() -> Void)?
 
-    init(scheduler: BreakScheduler) {
+    init(scheduler: BreakScheduler, bedtime: BedtimeScheduler) {
         self.scheduler = scheduler
+        self.bedtime = bedtime
         super.init()
     }
 
     func show() {
         if window == nil { window = buildWindow() }
         syncLoginCheckbox()
+        syncBedtimeControls()
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -52,7 +64,7 @@ final class PreferencesController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 660),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 860),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
@@ -98,6 +110,44 @@ final class PreferencesController: NSObject {
                                       action: #selector(editMedsTapped))
         editMedsButton.bezelStyle = .rounded
 
+        let bedtimeHeader = sectionLabel("Bedtime paper mode")
+        bedtimeEnabledCheckbox = NSButton(
+            checkboxWithTitle: "Dim the screen to a paper look at bedtime",
+            target: self, action: #selector(bedtimeChanged))
+        let (bedStartRow, bsP) = makeTimeRow("Starts", minutes: settings.bedtimeStartMin,
+                                             action: #selector(bedtimeChanged))
+        let (bedEndRow, beP) = makeTimeRow("Ends", minutes: settings.bedtimeEndMin,
+                                           action: #selector(bedtimeChanged))
+        bedtimeStartPicker = bsP
+        bedtimeEndPicker = beP
+
+        let intensityLabel = NSTextField(labelWithString: "Intensity")
+        intensityLabel.alignment = .right
+        intensityLabel.translatesAutoresizingMaskIntoConstraints = false
+        intensityLabel.widthAnchor.constraint(equalToConstant: 150).isActive = true
+        intensityControl = NSSegmentedControl(
+            labels: Settings.PaperIntensity.allCases.map(\.title),
+            trackingMode: .selectOne,
+            target: self,
+            action: #selector(bedtimeChanged))
+        intensityControl.selectedSegment = settings.paperIntensity.rawValue
+        let intensityRow = NSStackView(views: [intensityLabel, intensityControl])
+        intensityRow.orientation = .horizontal
+        intensityRow.spacing = 10
+
+        bedtimeGammaCheckbox = NSButton(
+            checkboxWithTitle: "Warm & dim via display gamma (recommended)",
+            target: self, action: #selector(bedtimeChanged))
+        bedtimeGrayscaleCheckbox = NSButton(
+            checkboxWithTitle: "Also enable system grayscale (Color Filters)",
+            target: self, action: #selector(bedtimeChanged))
+
+        let bedtimeHint = NSTextField(wrappingLabelWithString:
+            "Brightness comes from display gamma (stable across desktop swipes). The paper layer is a faint warm tint. Optional grayscale uses Accessibility Color Filters — no Screen Recording. Shortcuts: ⌘⇧B toggle, ⌘⇧S snooze 15 min.")
+        bedtimeHint.font = .systemFont(ofSize: 11)
+        bedtimeHint.textColor = .secondaryLabelColor
+        bedtimeHint.preferredMaxLayoutWidth = 400
+
         loginCheckbox = NSButton(checkboxWithTitle: "Launch Stretch at login",
                                  target: self, action: #selector(toggleLogin(_:)))
 
@@ -109,6 +159,9 @@ final class PreferencesController: NSObject {
             shortIntervalRow, shortDurationRow, longIntervalRow, longDurationRow,
             idlePauseRow,
             NSBox.horizontalDivider(), suppressCheckbox, loginCheckbox,
+            NSBox.horizontalDivider(), bedtimeHeader,
+            bedtimeEnabledCheckbox, bedStartRow, bedEndRow, intensityRow,
+            bedtimeGammaCheckbox, bedtimeGrayscaleCheckbox, bedtimeHint,
             NSBox.horizontalDivider(), medsHeader,
             breakfastRow, lunchRow, dinnerRow, wakeStartRow, wakeEndRow,
             leadRow, expiryRow, editMedsButton,
@@ -155,7 +208,8 @@ final class PreferencesController: NSObject {
         return (row, stepper, valueField)
     }
 
-    private func makeTimeRow(_ title: String, minutes: Int) -> (NSView, NSDatePicker) {
+    private func makeTimeRow(_ title: String, minutes: Int,
+                             action: Selector = #selector(mealTimesChanged)) -> (NSView, NSDatePicker) {
         let label = NSTextField(labelWithString: title)
         label.alignment = .right
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -166,7 +220,7 @@ final class PreferencesController: NSObject {
         picker.datePickerElements = .hourMinute
         picker.dateValue = Self.date(fromMinutes: minutes)
         picker.target = self
-        picker.action = #selector(mealTimesChanged)
+        picker.action = action
 
         let row = NSStackView(views: [label, picker])
         row.orientation = .horizontal
@@ -187,6 +241,15 @@ final class PreferencesController: NSObject {
     private static func minutes(from date: Date) -> Int {
         let c = Calendar.current.dateComponents([.hour, .minute], from: date)
         return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
+    private func syncBedtimeControls() {
+        bedtimeEnabledCheckbox.state = settings.bedtimeEnabled ? .on : .off
+        bedtimeStartPicker.dateValue = Self.date(fromMinutes: settings.bedtimeStartMin)
+        bedtimeEndPicker.dateValue = Self.date(fromMinutes: settings.bedtimeEndMin)
+        intensityControl.selectedSegment = settings.paperIntensity.rawValue
+        bedtimeGammaCheckbox.state = settings.bedtimeUseGamma ? .on : .off
+        bedtimeGrayscaleCheckbox.state = settings.bedtimeUseGrayscale ? .on : .off
     }
 
     // MARK: - Actions
@@ -222,6 +285,23 @@ final class PreferencesController: NSObject {
             startMin: Self.minutes(from: wakeStartPicker.dateValue),
             endMin: Self.minutes(from: wakeEndPicker.dateValue))
         MedicationManager.shared.rebuildToday(for: Date())
+    }
+
+    @objc private func bedtimeChanged() {
+        settings.bedtimeEnabled = bedtimeEnabledCheckbox.state == .on
+        settings.bedtimeStartMin = Self.minutes(from: bedtimeStartPicker.dateValue)
+        settings.bedtimeEndMin = Self.minutes(from: bedtimeEndPicker.dateValue)
+        let seg = intensityControl.selectedSegment
+        settings.paperIntensity = Settings.PaperIntensity(rawValue: seg) ?? .medium
+        settings.bedtimeUseGamma = bedtimeGammaCheckbox.state == .on
+        settings.bedtimeUseGrayscale = bedtimeGrayscaleCheckbox.state == .on
+        // Clearing snooze/dismiss when re-enabling schedule so it can take effect tonight.
+        if settings.bedtimeEnabled {
+            settings.bedtimeSnoozeUntil = .distantPast
+            settings.bedtimeDismissedUntil = .distantPast
+        }
+        bedtime.refresh()
+        onBedtimeSettingsChanged?()
     }
 
     @objc private func editMedsTapped() { onEditMedications?() }

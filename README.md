@@ -19,8 +19,38 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
 - **Away-aware** — if the screen is locked for more than 30 seconds, that counts
   as a rest: the next-break countdown and the long-break cycle reset on unlock,
   so you're not nagged the moment you return. (An active **Pause** is respected.)
+- **Bedtime paper mode** — at a time you set (default 21:40–07:00), the screen
+  gets a soft, click-through paper wash (warm, slightly dim, faint grain) so
+  the Mac feels quieter and reminds you to sleep. No Screen Recording
+  permission. Turn on in **Preferences…**, or use the menu / **⌘⇧B** to
+  enable / dismiss until morning; **⌘⇧S** snoozes 15 minutes. Break overlays
+  still appear on top when due.
 - Lives in the **menu bar** with a live countdown to the next break.
 - No Dock icon, no Electron, ~2 MB, no runtime dependencies.
+
+## Bedtime paper mode
+
+A soft evening cue — not a lock. You can keep working; the screen just looks
+quieter (paper tint + optional warm/dim gamma). Optional system grayscale uses
+macOS Accessibility Color Filters for true desaturation.
+
+| Control | Where |
+|---------|--------|
+| Schedule (start / end, Light–Strong) | **Preferences… → Bedtime paper mode** |
+| Warm & dim via gamma | Preferences checkbox (on by default) |
+| System grayscale | Preferences checkbox (off by default) |
+| Toggle / dismiss until morning | Menu or **⌘⇧B** |
+| Snooze 15 / 30 / 60 min | Menu; **⌘⇧S** = snooze 15 min |
+
+### Permissions
+
+| Permission | Needed? |
+|------------|---------|
+| **Screen Recording** | **No** — Stretch never captures pixels for paper mode. |
+| **Accessibility** | **No** for paper wash, gamma, or hotkeys. System grayscale writes Universal Access prefs; if it does not apply on your macOS build, toggle **Color Filters** once under System Settings → Accessibility → Display, or leave grayscale off. |
+| **Login item** | Optional — same as the rest of Stretch. |
+
+Gamma is restored when paper mode ends or when you quit Stretch.
 
 ## Requirements
 
@@ -52,9 +82,11 @@ swift run
 - **Take a short / long break now** — trigger a break immediately.
 - **Reset timer** — restart the countdown to the next break.
 - **Pause** — for 30 min, 1 hour, or indefinitely; **Resume** to continue.
+- **Bedtime paper** — status line, turn on / dismiss until morning, snooze;
+  shortcuts **⌘⇧B** / **⌘⇧S**.
 - **Medications…** — add/edit medications & supplements to be reminded about.
 - **History…** — break stats over time (stored locally, see below).
-- **Preferences…** — change intervals, durations, meal times, and launch-at-login.
+- **Preferences…** — change intervals, durations, bedtime window, meal times, and launch-at-login.
 
 ## History
 
@@ -137,8 +169,13 @@ Resources/Info.plist          Bundle metadata (LSUIElement = menu-bar app)
 build.sh                      Compile + assemble Stretch.app + ad-hoc sign
 Sources/Stretch/
   main.swift                  Entry point (.accessory activation policy)
-  AppDelegate.swift           Wires scheduler ↔ menu ↔ overlay
+  AppDelegate.swift           Wires scheduler ↔ menu ↔ overlay ↔ bedtime
   BreakScheduler.swift        The timing state machine
+  BedtimeScheduler.swift      Bedtime window / snooze / dismiss logic
+  PaperModeController.swift   Click-through paper wash on every display
+  DisplayGamma.swift          Optional warm/dim gamma (restored on quit)
+  AccessibilityColorFilter.swift  Optional system grayscale Color Filters
+  HotKeyController.swift      ⌘⇧B toggle / ⌘⇧S snooze global hotkeys
   MenuBarController.swift     Status item + menu + countdown label
   OverlayController.swift     Full-screen break overlay windows
   PreferencesController.swift Settings window

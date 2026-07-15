@@ -4,19 +4,25 @@ import AppKit
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
     private let scheduler: BreakScheduler
+    private let bedtime: BedtimeScheduler
     private var statusLine: NSMenuItem!
+    private var bedtimeStatusLine: NSMenuItem!
+    private var bedtimeToggleItem: NSMenuItem!
 
     var onPreferences: (() -> Void)?
     var onHistory: (() -> Void)?
     var onMedications: (() -> Void)?
+    var onBedtimeSettingsChanged: (() -> Void)?
 
-    init(scheduler: BreakScheduler) {
+    init(scheduler: BreakScheduler, bedtime: BedtimeScheduler) {
         self.scheduler = scheduler
+        self.bedtime = bedtime
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         buildMenu()
         setImage("figure.mind.and.body")
         statusItem.button?.imagePosition = .imageLeading
+        updateBedtime(active: bedtime.isActive)
     }
 
     // MARK: - Menu
@@ -44,6 +50,28 @@ final class MenuBarController: NSObject {
         pauseItem.submenu = pauseMenu
         menu.addItem(pauseItem)
 
+        menu.addItem(.separator())
+        bedtimeStatusLine = NSMenuItem(title: "Bedtime paper: off", action: nil, keyEquivalent: "")
+        bedtimeStatusLine.isEnabled = false
+        menu.addItem(bedtimeStatusLine)
+        bedtimeToggleItem = item("Turn on paper mode", #selector(toggleBedtime))
+        menu.addItem(bedtimeToggleItem)
+
+        let snoozeItem = NSMenuItem(title: "Snooze paper mode", action: nil, keyEquivalent: "")
+        let snoozeMenu = NSMenu()
+        snoozeMenu.addItem(item("For 15 minutes", #selector(snooze15)))
+        snoozeMenu.addItem(item("For 30 minutes", #selector(snooze30)))
+        snoozeMenu.addItem(item("For 1 hour", #selector(snooze60)))
+        snoozeItem.submenu = snoozeMenu
+        menu.addItem(snoozeItem)
+
+        let hotkeyHint = NSMenuItem(
+            title: "Shortcuts: ⌘⇧B toggle · ⌘⇧S snooze 15m",
+            action: nil, keyEquivalent: "")
+        hotkeyHint.isEnabled = false
+        menu.addItem(hotkeyHint)
+
+        menu.addItem(.separator())
         menu.addItem(item("Medications…", #selector(openMeds)))
         menu.addItem(item("History…", #selector(openHistory)))
         menu.addItem(item("Preferences…", #selector(openPrefs), key: ","))
@@ -72,11 +100,23 @@ final class MenuBarController: NSObject {
         case .working(let nextBreak, let type):
             let r = max(0, nextBreak.timeIntervalSinceNow)
             button.title = " " + Self.clock(r)
-            if let holdReason {
+            if bedtime.isActive {
+                setImage("moon.fill")
+            } else if let holdReason {
                 setImage("figure.mind.and.body.circle")
                 statusLine.title = holdReason.menuDescription + " — " + Self.clock(r)
             } else {
                 setImage("figure.mind.and.body")
+            }
+            if !bedtime.isActive || holdReason == nil {
+                if let holdReason {
+                    statusLine.title = holdReason.menuDescription + " — " + Self.clock(r)
+                } else {
+                    statusLine.title = type.isLong
+                        ? "Next: long break in \(Self.clock(r))"
+                        : "Next: break in \(Self.clock(r))"
+                }
+            } else {
                 statusLine.title = type.isLong
                     ? "Next: long break in \(Self.clock(r))"
                     : "Next: break in \(Self.clock(r))"
@@ -91,12 +131,30 @@ final class MenuBarController: NSObject {
 
         case .paused(let until):
             button.title = ""
-            setImage("pause.circle")
+            setImage(bedtime.isActive ? "moon.fill" : "pause.circle")
             if let until = until {
                 statusLine.title = "Paused until " + Self.timeOfDay(until)
             } else {
                 statusLine.title = "Paused"
             }
+        }
+    }
+
+    func updateBedtime(active: Bool) {
+        let settings = Settings.shared
+        if active {
+            bedtimeStatusLine.title = "Bedtime paper: on · until "
+                + BedtimeScheduler.formatMinutes(settings.bedtimeEndMin)
+            bedtimeToggleItem.title = "Turn off until morning"
+        } else if settings.bedtimeEnabled {
+            bedtimeStatusLine.title = "Bedtime paper: scheduled "
+                + BedtimeScheduler.formatMinutes(settings.bedtimeStartMin)
+                + "–"
+                + BedtimeScheduler.formatMinutes(settings.bedtimeEndMin)
+            bedtimeToggleItem.title = "Turn on paper mode"
+        } else {
+            bedtimeStatusLine.title = "Bedtime paper: off (enable in Preferences)"
+            bedtimeToggleItem.title = "Turn on paper mode"
         }
     }
 
@@ -114,10 +172,24 @@ final class MenuBarController: NSObject {
     @objc private func openMeds()   { onMedications?() }
     @objc private func quit()       { NSApp.terminate(nil) }
 
+    @objc private func toggleBedtime() {
+        if bedtime.isActive {
+            bedtime.dismissUntilMorning()
+        } else {
+            bedtime.activateNow()
+        }
+        onBedtimeSettingsChanged?()
+        updateBedtime(active: bedtime.isActive)
+    }
+
+    @objc private func snooze15() { bedtime.snooze(minutes: 15); updateBedtime(active: bedtime.isActive) }
+    @objc private func snooze30() { bedtime.snooze(minutes: 30); updateBedtime(active: bedtime.isActive) }
+    @objc private func snooze60() { bedtime.snooze(minutes: 60); updateBedtime(active: bedtime.isActive) }
+
     @objc private func about() {
         let alert = NSAlert()
         alert.messageText = "Stretch"
-        alert.informativeText = "A tiny break reminder.\nShort breaks to rest your eyes, longer breaks to move.\n\nCreated by Ziang and Claude Code.\nStay healthy. 🧘"
+        alert.informativeText = "A tiny break reminder.\nShort breaks to rest your eyes, longer breaks to move.\nOptional bedtime paper mode for a quieter evening screen.\n\nCreated by Ziang and Claude Code.\nStay healthy. 🧘"
         alert.alertStyle = .informational
         NSApp.activate(ignoringOtherApps: true)
         alert.runModal()
