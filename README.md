@@ -36,9 +36,9 @@ macOS Accessibility Color Filters for true desaturation.
 
 | Control | Where |
 |---------|--------|
-| Schedule (start / end, Light–Strong) | **Preferences… → Bedtime paper mode** |
-| Warm & dim via gamma | Preferences checkbox (on by default) |
-| System grayscale | Preferences checkbox (off by default) |
+| Schedule (start / end, Light–Strong) | **Preferences… → Bedtime** tab |
+| Warm & dim via gamma | Bedtime tab checkbox (on by default) |
+| System grayscale | Bedtime tab checkbox (off by default) |
 | Toggle / dismiss until morning | Menu or **⌘⇧B** |
 | Snooze 15 / 30 / 60 min | Menu; **⌘⇧S** = snooze 15 min |
 
@@ -86,7 +86,8 @@ swift run
   shortcuts **⌘⇧B** / **⌘⇧S**.
 - **Medications…** — add/edit medications & supplements to be reminded about.
 - **History…** — break stats over time (stored locally, see below).
-- **Preferences…** — change intervals, durations, bedtime window, meal times, and launch-at-login.
+- **Preferences…** — toolbar tabs for **Breaks** (intervals, mic-aware pausing, login),
+  **Bedtime** (paper mode schedule), and **Medications** (meal times & dose rules).
 
 ## History
 
@@ -104,7 +105,7 @@ in the menu (name, oral/topical, schedule, an optional note like "with food").
 Two schedule types:
 
 - **Meal-relative** — before / after / with breakfast, lunch, or dinner, plus an
-  offset (e.g. "30 min before lunch"). Meal times are set in **Preferences**.
+  offset (e.g. "30 min before lunch"). Meal times are set in **Preferences → Medications**.
 - **N× per day** — a count spread across your waking window (e.g. "4× per day").
 
 When a dose is due, it appears at the bottom of the next break overlay. It's
