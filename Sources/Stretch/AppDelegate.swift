@@ -23,6 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
 
+        // Default: open at login. User can turn off in Preferences.
+        LaunchAtLogin.applyPreference()
+
         menu = MenuBarController(scheduler: scheduler, bedtime: bedtime)
         menu.onPreferences = { [weak self] in self?.showPreferences() }
         menu.onHistory = { [weak self] in self?.history.show() }
