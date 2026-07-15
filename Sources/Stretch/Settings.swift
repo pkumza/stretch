@@ -29,6 +29,7 @@ final class Settings {
         static let bedtimeEndMin   = "bedtimeEndMin"
         static let paperIntensity  = "paperIntensity"
         static let bedtimeUseGamma = "bedtimeUseGamma"
+        static let launchAtLogin   = "launchAtLogin"
         static let bedtimeUseGrayscale = "bedtimeUseGrayscale"
         static let bedtimeSnoozeUntil    = "bedtimeSnoozeUntil"
         static let bedtimeDismissedUntil = "bedtimeDismissedUntil"
@@ -96,6 +97,7 @@ final class Settings {
             Keys.paperIntensity: PaperIntensity.medium.rawValue,
             Keys.bedtimeUseGamma: true,
             Keys.bedtimeUseGrayscale: false,
+            Keys.launchAtLogin: true,  // open Stretch when the Mac starts
         ])
     }
 
@@ -175,6 +177,11 @@ final class Settings {
     var bedtimeUseGamma: Bool {
         get { d.bool(forKey: Keys.bedtimeUseGamma) }
         set { d.set(newValue, forKey: Keys.bedtimeUseGamma) }
+    }
+    /// Prefer opening Stretch at login (default on). Synced via `LaunchAtLogin`.
+    var launchAtLogin: Bool {
+        get { d.bool(forKey: Keys.launchAtLogin) }
+        set { d.set(newValue, forKey: Keys.launchAtLogin) }
     }
     /// When on, also enable system Accessibility Color Filters → Grayscale.
     var bedtimeUseGrayscale: Bool {

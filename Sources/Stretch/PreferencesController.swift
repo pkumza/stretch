@@ -1,5 +1,4 @@
 import AppKit
-import ServiceManagement
 
 /// A small settings window: intervals, durations, bedtime paper, and launch-at-login.
 final class PreferencesController: NSObject {
@@ -312,22 +311,17 @@ final class PreferencesController: NSObject {
 
     @objc private func toggleLogin(_ sender: NSButton) {
         guard #available(macOS 13, *) else { return }
-        do {
-            if sender.state == .on {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-        } catch {
-            // Unsigned/dev builds may not support this; revert the checkbox.
-            sender.state = sender.state == .on ? .off : .on
+        let wantOn = sender.state == .on
+        if !LaunchAtLogin.setEnabled(wantOn) {
+            // Unsigned/dev builds or not installed under /Applications may fail.
+            sender.state = wantOn ? .off : .on
             NSSound.beep()
         }
     }
 
     private func syncLoginCheckbox() {
         guard #available(macOS 13, *) else { loginCheckbox.isEnabled = false; return }
-        loginCheckbox.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        loginCheckbox.state = settings.launchAtLogin ? .on : .off
     }
 }
 
