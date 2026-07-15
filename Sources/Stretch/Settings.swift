@@ -52,26 +52,26 @@ final class Settings {
         /// dimming here shows up as a bright→dark step. Warmth/dim live in gamma.
         var washAlpha: CGFloat {
             switch self {
-            case .light:  return 0.01
-            case .medium: return 0.025
-            case .strong: return 0.04
+            case .light:  return 0.025
+            case .medium: return 0.04
+            case .strong: return 0.055
             }
         }
         var dimAlpha: CGFloat { 0 }
         var grainAlpha: CGFloat { 0 }
         var gammaWarmth: CGFloat {
             switch self {
-            case .light:  return 0.22
-            case .medium: return 0.50
-            case .strong: return 0.78
+            case .light:  return 0.50
+            case .medium: return 0.78
+            case .strong: return 1.0
             }
         }
         /// Sole brightness control — must match the look with or without the panel.
         var gammaDim: CGFloat {
             switch self {
-            case .light:  return 0.82
-            case .medium: return 0.66
-            case .strong: return 0.50
+            case .light:  return 0.66
+            case .medium: return 0.50
+            case .strong: return 0.36
             }
         }
     }
