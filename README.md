@@ -16,16 +16,24 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
   - **Remind me in 2 min** (snooze) — click, or press **P** / **Esc**.
 - **Local history** — open **History…** from the menu to see breaks taken, rest
   time, permanent skips, and snoozes for today / last 7 days / 30 days / all time.
-- **Away-aware** — if the screen is locked for more than 30 seconds, that counts
-  as a rest: the next-break countdown and the long-break cycle reset on unlock,
-  so you're not nagged the moment you return. (An active **Pause** is respected.)
+- **Away-aware** — idle or lock time counts toward rest: if a break is due, a
+  partial away tops up the remainder; a full short/long away can complete it
+  silently. Longer away while working banks credit toward the next long break
+  (or counts as a long break if you were gone long enough).
+- **Eye-strain color** — skipping (S), snoozing (P), pausing, or sitting through
+  an overdue break (e.g. on a call) tints the menu-bar clock (yellow → orange →
+  red). Color clears only after a real rest or enough away time — not by waiting.
+- **Calls** — when the mic is in use, an overdue break waits; after you hang up,
+  Stretch waits 30 seconds, then starts the break. The clock shows overdue as
+  `-MM:SS`.
 - **Bedtime paper mode** — at a time you set (default 21:40–07:00), the screen
   gets a soft, click-through paper wash (warm, slightly dim, faint grain) so
   the Mac feels quieter and reminds you to sleep. No Screen Recording
   permission. Turn on in **Preferences…**, or use the menu / **⌘⇧B** to
   enable / dismiss until morning; **⌘⇧S** snoozes 15 minutes. Break overlays
   still appear on top when due.
-- Lives in the **menu bar** with a live countdown to the next break.
+- Lives in the **menu bar** with a live countdown (or overdue `-MM:SS`) to the
+  next break.
 - No Dock icon, no Electron, ~2 MB, no runtime dependencies.
 
 ## Bedtime paper mode

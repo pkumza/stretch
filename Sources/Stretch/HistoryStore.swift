@@ -6,11 +6,13 @@ struct BreakEvent: Codable {
         case completed   // you took the break
         case skipped     // permanent skip
         case snoozed     // temporary skip — re-alerts shortly
+        /// Eye-debt episode ended; `durationSec` is the peak strain reached.
+        case debtCleared
     }
     let date: Date
     let isLong: Bool
     let action: Action
-    let durationSec: Int   // for completed breaks; 0 otherwise
+    let durationSec: Int   // completed rest length, or peak debt for debtCleared
 }
 
 /// Aggregated counts over some time window.
@@ -19,6 +21,8 @@ struct HistorySummary {
     var restSeconds = 0
     var skipCount = 0
     var snoozeCount = 0
+    var debtClearCount = 0
+    var peakDebtSeconds = 0
 }
 
 /// Append-only event log persisted as JSON in Application Support.
@@ -55,6 +59,9 @@ final class HistoryStore {
                 s.skipCount += 1
             case .snoozed:
                 s.snoozeCount += 1
+            case .debtCleared:
+                s.debtClearCount += 1
+                s.peakDebtSeconds = max(s.peakDebtSeconds, e.durationSec)
             }
         }
         return s

@@ -1,14 +1,15 @@
 import Foundation
 
-/// Watches macOS screen lock/unlock. If the screen stays locked longer than
-/// `threshold`, the user was effectively away — `onLongAway` fires on unlock.
-/// `onUnlock` fires on every unlock so bedtime paper / gamma can be re-applied.
+/// Watches macOS screen lock/unlock. Reports how long the screen stayed locked
+/// when it unlocks, so the scheduler can settle an away episode (rest credit /
+/// top-up / silent complete). `onUnlock` fires on every unlock so bedtime paper
+/// / gamma can be re-applied.
 final class LockMonitor: NSObject {
-    var onLongAway: (() -> Void)?
+    /// Fired on unlock with the seconds the screen was locked (may be tiny).
+    var onAwayEnded: ((TimeInterval) -> Void)?
     var onUnlock: (() -> Void)?
 
     private var lockedAt: Date?
-    private let threshold: TimeInterval = 30
 
     override init() {
         super.init()
@@ -27,8 +28,9 @@ final class LockMonitor: NSObject {
         defer { lockedAt = nil }
         onUnlock?()
         guard let lockedAt else { return }
-        if Date().timeIntervalSince(lockedAt) > threshold {
-            onLongAway?()
+        let duration = Date().timeIntervalSince(lockedAt)
+        if duration > 0 {
+            onAwayEnded?(duration)
         }
     }
 }

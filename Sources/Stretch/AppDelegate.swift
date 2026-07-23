@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         scheduler.onTick = { [weak self] state in
             guard let self else { return }
-            self.menu.update(state: state, holdReason: self.holdReason(for: state))
+            self.menu.update(state: state, micHeld: self.isMicHolding(state))
             MedicationManager.shared.tick()
             self.bedtime.tick()
             if case .breaking(_, let ends) = state {
@@ -86,12 +86,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scheduler.shouldSuppressBreak = { type in
             Settings.shared.suppressDuringPresentation && PresentationGuard.shouldSuppress(for: type)
         }
-        scheduler.isUserAway = {
-            IdleMonitor.secondsSinceInput() >= Settings.shared.idlePauseSeconds
+        scheduler.secondsIdle = {
+            IdleMonitor.secondsSinceInput()
         }
 
-        lockMonitor.onLongAway = { [weak self] in
-            self?.scheduler.resetAfterAwayBreak()
+        lockMonitor.onAwayEnded = { [weak self] duration in
+            self?.scheduler.settleAwayEpisode(duration: duration)
         }
         lockMonitor.onUnlock = { [weak self] in
             guard let self, self.bedtime.isActive else { return }
@@ -209,10 +209,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func holdReason(for state: SchedulerState) -> PresentationGuard.HoldReason? {
+    /// Mic is live and suppress-during-call is on — show the circled yoga icon.
+    private func isMicHolding(_ state: SchedulerState) -> Bool {
         guard Settings.shared.suppressDuringPresentation,
-              case .working(_, let type) = state else { return nil }
-        return PresentationGuard.holdReason(for: type)
+              case .working(_, let type) = state else { return false }
+        return PresentationGuard.holdReason(for: type) != nil
     }
 
     private func showPreferences() {

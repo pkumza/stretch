@@ -25,13 +25,11 @@ final class PreferencesController: NSObject, NSToolbarDelegate {
     private var shortDurationStepper: NSStepper!
     private var longIntervalStepper: NSStepper!
     private var longDurationStepper: NSStepper!
-    private var idlePauseStepper: NSStepper!
 
     private var shortIntervalValue: NSTextField!
     private var shortDurationValue: NSTextField!
     private var longIntervalValue: NSTextField!
     private var longDurationValue: NSTextField!
-    private var idlePauseValue: NSTextField!
 
     private var doseLeadStepper: NSStepper!
     private var doseCutoffStepper: NSStepper!
@@ -135,16 +133,10 @@ final class PreferencesController: NSObject, NSToolbarDelegate {
             title: "Long",
             everyValue: settings.longIntervalMinutes, everyMin: 5, everyMax: 240, everyUnit: "min",
             lastsValue: settings.longDurationMinutes, lastsMin: 1, lastsMax: 60, lastsUnit: "min")
-        let (idleBar, idStep, idVal) = makeStepperBar(
-            title: "Idle",
-            prefix: "pause after",
-            value: settings.idlePauseMinutes, min: 1, max: 60, unit: "min")
-
         shortIntervalStepper = sIStep; shortDurationStepper = sDStep
         shortIntervalValue = sIVal; shortDurationValue = sDVal
         longIntervalStepper = lIStep; longDurationStepper = lDStep
         longIntervalValue = lIVal; longDurationValue = lDVal
-        idlePauseStepper = idStep; idlePauseValue = idVal
 
         suppressCheckbox = NSButton(
             checkboxWithTitle: "Don't interrupt when the microphone is in use",
@@ -157,7 +149,7 @@ final class PreferencesController: NSObject, NSToolbarDelegate {
 
         let optionsBar = makeOptionsBar(views: [suppressCheckbox, loginCheckbox])
 
-        return paneStack(views: [shortBar, longBar, idleBar, optionsBar])
+        return paneStack(views: [shortBar, longBar, optionsBar])
     }
 
     private func buildBedtimePane() -> NSView {
@@ -548,7 +540,6 @@ final class PreferencesController: NSObject, NSToolbarDelegate {
         settings.shortDurationSecondsValue = shortDurationStepper.integerValue
         settings.longIntervalMinutes = longIntervalStepper.integerValue
         settings.longDurationMinutes = longDurationStepper.integerValue
-        settings.idlePauseMinutes = idlePauseStepper.integerValue
 
         settings.doseLeadMinutes = doseLeadStepper.integerValue
         settings.doseCutoffMinutes = doseCutoffStepper.integerValue
@@ -557,7 +548,6 @@ final class PreferencesController: NSObject, NSToolbarDelegate {
         shortDurationValue.stringValue = "\(settings.shortDurationSecondsValue)"
         longIntervalValue.stringValue = "\(settings.longIntervalMinutes)"
         longDurationValue.stringValue = "\(settings.longDurationMinutes)"
-        idlePauseValue.stringValue = "\(settings.idlePauseMinutes)"
         doseLeadValue.stringValue = "\(settings.doseLeadMinutes)"
         doseCutoffValue.stringValue = "\(settings.doseCutoffMinutes)"
 

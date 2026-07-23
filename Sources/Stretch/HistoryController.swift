@@ -18,14 +18,14 @@ final class HistoryController: NSObject {
     // MARK: - Build
 
     private func buildWindow() -> NSWindow {
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 420),
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 420),
                            styleMask: [.titled, .closable],
                            backing: .buffered,
                            defer: false)
         win.title = "Break History"
         win.isReleasedWhenClosed = false
 
-        let grid = Self.makeGrid(["Period", "Rested", "Rest time", "Skipped", "Snoozed"])
+        let grid = Self.makeGrid(["Period", "Rested", "Rest time", "Skipped", "Snoozed", "Debts", "Peak debt"])
         self.grid = grid
         let title = Self.sectionTitle("Your breaks")
 
@@ -104,6 +104,8 @@ final class HistoryController: NSObject {
                     Self.cell(Self.duration(s.restSeconds)),
                     Self.cell("\(s.skipCount)"),
                     Self.cell("\(s.snoozeCount)"),
+                    Self.cell("\(s.debtClearCount)"),
+                    Self.cell(s.peakDebtSeconds > 0 ? Self.duration(s.peakDebtSeconds) : "—"),
                 ])
             }
         }
