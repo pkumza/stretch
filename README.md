@@ -16,10 +16,11 @@ A tiny native macOS menu-bar app that reminds you to take breaks — like
   - **Remind me in 2 min** (snooze) — click, or press **P** / **Esc**.
 - **Local history** — open **History…** from the menu to see breaks taken, rest
   time, permanent skips, and snoozes for today / last 7 days / 30 days / all time.
-- **Away-aware** — idle or lock time counts toward rest: if a break is due, a
-  partial away tops up the remainder; a full short/long away can complete it
-  silently. Longer away while working banks credit toward the next long break
-  (or counts as a long break if you were gone long enough).
+- **Away-aware** — lock or idle (default: 5 min without input) counts as rest for
+  scheduling. Away for a full long break (≥ 5 min) is recorded as a long break
+  and the cycle restarts — so unlocking after a real rest does not immediately
+  open another long overlay. Shorter away can complete a pending short, or simply
+  defer the next break. Overlay countdowns always use the full short/long length.
 - **Eye-strain color** — skipping (S), snoozing (P), pausing, or sitting through
   an overdue break (e.g. on a call) tints the menu-bar clock (yellow → orange →
   red). Color clears only after a real rest or enough away time — not by waiting.

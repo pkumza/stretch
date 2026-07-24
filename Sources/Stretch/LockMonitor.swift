@@ -1,9 +1,9 @@
 import Foundation
 
 /// Watches macOS screen lock/unlock. Reports how long the screen stayed locked
-/// when it unlocks, so the scheduler can settle an away episode (rest credit /
-/// top-up / silent complete). `onUnlock` fires on every unlock so bedtime paper
-/// / gamma can be re-applied.
+/// when it unlocks, so the scheduler can treat a long lock as rest (and avoid
+/// firing another long break immediately). `onUnlock` fires on every unlock so
+/// bedtime paper / gamma can be re-applied.
 final class LockMonitor: NSObject {
     /// Fired on unlock with the seconds the screen was locked (may be tiny).
     var onAwayEnded: ((TimeInterval) -> Void)?

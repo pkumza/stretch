@@ -32,9 +32,6 @@ final class BreakScheduler {
     /// Highest strain reached since the last clear (for history).
     private var strainPeakSeconds: TimeInterval = 0
 
-    /// Seconds banked toward the next long break (capped at one long duration).
-    private(set) var longBreakCredit: TimeInterval = 0
-
     /// Only log a debt-cleared history row when the peak was at least this long.
     private let minDebtRecordSeconds: TimeInterval = 60
 
@@ -50,7 +47,7 @@ final class BreakScheduler {
     private let skipStrainBoost: TimeInterval = 15 * 60
     /// Strain rate while a snooze countdown is running.
     private let snoozeStrainRate: TimeInterval = 0.35
-    /// Ignore sub-second jitter when detecting end of an away episode.
+    /// Ignore tiny lock/idle jitter when settling an away episode.
     private let awayNoiseFloor: TimeInterval = 3
 
     /// Set when an overdue break was held for the mic and the mic has since
@@ -90,7 +87,8 @@ final class BreakScheduler {
     private func tick() {
         let now = Date()
         let idle = secondsIdle?() ?? 0
-        let isAway = idle >= awayNoiseFloor
+        // Preferences "idle pause" (default 5 min) — not a few seconds of stillness.
+        let isAway = idle >= settings.idlePauseSeconds
 
         if isAway {
             idleAwayActive = true
@@ -155,41 +153,14 @@ final class BreakScheduler {
                          nextType: type)
     }
 
-    private func nominalDuration(for type: BreakType) -> TimeInterval {
+    private func duration(for type: BreakType) -> TimeInterval {
         type.isLong ? settings.longDurationSeconds : settings.shortDurationSeconds
     }
 
-    /// Long breaks are shortened by banked credit, with a small floor so a long
-    /// never disappears entirely after partial credit.
-    private func plannedDuration(for type: BreakType) -> TimeInterval {
-        let nominal = nominalDuration(for: type)
-        guard type.isLong else { return nominal }
-        let floor = max(30, nominal * 0.2)
-        return max(floor, nominal - longBreakCredit)
-    }
-
-    private func consumeLongCredit(planned _: TimeInterval) {
-        // Credit is fully applied into this long (via plannedDuration); clear it.
-        longBreakCredit = 0
-    }
-
-    /// - Parameter duration: nil uses the planned duration (long credit applied).
-    ///   A non-nil value is a top-up / custom length; caller must already have
-    ///   consumed long credit when appropriate.
-    private func beginBreak(_ type: BreakType, duration: TimeInterval? = nil, creditConsumed: Bool = false) {
+    private func beginBreak(_ type: BreakType) {
         postCallAt = nil
         snoozeActive = false
-        let finalDuration: TimeInterval
-        if let duration {
-            finalDuration = max(1, duration)
-            if type.isLong, !creditConsumed {
-                consumeLongCredit(planned: plannedDuration(for: type))
-            }
-        } else {
-            let planned = plannedDuration(for: type)
-            if type.isLong { consumeLongCredit(planned: planned) }
-            finalDuration = max(1, planned)
-        }
+        let finalDuration = max(1, duration(for: type))
         currentBreakDuration = finalDuration
         state = .breaking(type: type, ends: Date().addingTimeInterval(finalDuration))
         onBreakStart?(type, finalDuration)
@@ -234,6 +205,10 @@ final class BreakScheduler {
     // MARK: - Away settlement
 
     /// Call when a continuous away episode ends (idle returned, or screen unlocked).
+    ///
+    /// Intent: a real away (especially a long lock) *is* the rest — don't show a
+    /// shortened overlay, and don't immediately fire another long break on return.
+    /// Overlay durations stay full (20s / 5 min); away only affects scheduling.
     func settleAwayEpisode(duration: TimeInterval) {
         guard duration >= awayNoiseFloor else { return }
         // Debounce lock+idle double settlement.
@@ -246,10 +221,7 @@ final class BreakScheduler {
             // Pause is respected for scheduling, but away still rests the eyes.
             reduceStrain(duration)
             if duration >= settings.longDurationSeconds {
-                longBreakCredit = 0
                 clearStrain()
-            } else if duration >= settings.shortDurationSeconds {
-                bankLongCredit(duration)
             }
             onTick?(state)
             return
@@ -268,57 +240,41 @@ final class BreakScheduler {
             return
         }
 
-        let now = Date()
-        let imminent = now >= nextBreak || postCallAt != nil
-
-        if imminent {
-            settleImminentAway(duration: duration, type: type)
-        } else {
-            settleFarAway(duration: duration)
-        }
-        onTick?(state)
-    }
-
-    private func settleImminentAway(duration: TimeInterval, type: BreakType) {
-        let planned = plannedDuration(for: type)
-        if duration >= planned {
-            Self.logger.info("Away \(Int(duration))s satisfied imminent \(type.logName) break (\(Int(planned))s)")
-            if type.isLong { consumeLongCredit(planned: planned) }
-            silentComplete(type: type, durationSec: Int(planned.rounded()))
-        } else {
-            let remaining = planned - duration
-            Self.logger.info("Away \(Int(duration))s; topping up \(type.logName) break with \(Int(remaining))s")
-            if type.isLong { consumeLongCredit(planned: planned) }
-            reduceStrain(duration)
-            beginBreak(type, duration: remaining, creditConsumed: true)
-        }
-    }
-
-    private func settleFarAway(duration: TimeInterval) {
         let longDur = settings.longDurationSeconds
         let shortDur = settings.shortDurationSeconds
+        let imminent = Date() >= nextBreak || postCallAt != nil
 
         if duration >= longDur {
-            // Plan B: a full long rest away from the desk counts as the long break.
-            Self.logger.info("Far away \(Int(duration))s ≥ long duration — silent long complete")
-            longBreakCredit = 0
+            // Locked / away for a full long rest — count it, restart the cycle.
+            // Unlock after ~5 min must not immediately open another long break.
+            Self.logger.info("Away \(Int(duration))s ≥ long duration — silent long complete")
             silentComplete(type: .long, durationSec: Int(longDur.rounded()))
             return
         }
 
         if duration >= shortDur {
-            bankLongCredit(duration)
-            reduceStrain(duration)
-            Self.logger.info("Far away \(Int(duration))s — banked long credit (now \(Int(self.longBreakCredit))s)")
+            if type.isLong {
+                // Not enough for the pending long; push the clock so sit-down
+                // doesn't open a full long overlay immediately.
+                Self.logger.info("Away \(Int(duration))s (short-sized); deferring pending long")
+                reduceStrain(duration)
+                scheduleNextWork()
+                onTick?(state)
+            } else {
+                Self.logger.info("Away \(Int(duration))s ≥ short duration — silent short complete")
+                silentComplete(type: .short, durationSec: Int(shortDur.rounded()))
+            }
             return
         }
 
-        // Noise: short glance away.
-    }
-
-    private func bankLongCredit(_ duration: TimeInterval) {
-        let cap = settings.longDurationSeconds
-        longBreakCredit = min(cap, longBreakCredit + duration)
+        // Brief away: leave a mid-interval countdown alone. If a break was
+        // already due, start it at full length (never a shortened top-up).
+        reduceStrain(duration)
+        if imminent {
+            Self.logger.info("Away \(Int(duration))s with imminent \(type.logName) — starting full break")
+            beginBreak(type)
+        }
+        onTick?(state)
     }
 
     private func silentComplete(type: BreakType, durationSec: Int) {
@@ -328,6 +284,7 @@ final class BreakScheduler {
         clearStrain()
         onBreakEnd?()
         scheduleNextWork()
+        onTick?(state)
     }
 
     // MARK: - User actions
@@ -343,9 +300,8 @@ final class BreakScheduler {
         onTick?(state)
     }
 
-    /// Menu "Reset timer": new countdown, clear eye-debt color and long credit.
+    /// Menu "Reset timer": new countdown and clear eye-debt color.
     func resetTimer() {
-        longBreakCredit = 0
         clearStrain()
         scheduleNextWork()
         onTick?(state)
